@@ -435,7 +435,7 @@ local function celebrate(amount: number, isTest: boolean)
 	confetti()
 
 	popupAmount.Text = if isTest
-		then "Test donation of R$ " .. amount .. " (no Robux spent)"
+		then "Just a test: Roblox doesn't let you buy your own gamepasses"
 		else "You donated R$ " .. amount
 	popup.Visible = true
 	popupScale.Scale = 0
