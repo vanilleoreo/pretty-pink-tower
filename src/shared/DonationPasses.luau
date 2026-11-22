@@ -1,6 +1,8 @@
 -- Gamepasses in the donate menu (the Donate button and the donation stand).
 -- Any order is fine: the menu sorts them from cheapest to most expensive.
 -- Each player can buy each one once; after that it shows "Donated 💖".
+-- A Developer Product named "Donate ..." with the same price replaces its gamepass in the menu
+-- (products can be bought again and again).
 --
 -- To add another: make a gamepass on the Creator Hub (Monetization → Passes), turn on
 -- "Item for sale" and give it a price, then paste its ID here.

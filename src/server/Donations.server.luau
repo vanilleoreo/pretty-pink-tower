@@ -4,8 +4,9 @@
 -- pressing the Donate button on the screen) opens the donate menu (Donate.client.luau).
 --
 -- The donation amounts are:
---   - the gamepasses listed in src/shared/DonationPasses.luau (each can be bought once), and
---   - any Developer Products with "Donate" in their name (these can be bought again and again).
+--   - any Developer Products with "Donate" in their name (these can be bought again and again), and
+--   - the gamepasses listed in src/shared/DonationPasses.luau (each can only be bought once).
+-- If a product and a gamepass cost the same, only the product is shown.
 -- They show up as buttons, cheapest first, with the prices set on the Creator Hub.
 --
 -- Want the stand somewhere else? In Studio, put a Part called "DonationStandSpot" in Workspace
@@ -185,7 +186,7 @@ task.spawn(function()
 	if ok and typeof(saved) == "table" then
 		totals = saved
 		showTotals(totals.Raised or 0, totals.LastName, totals.LastAmount)
-	elseif not ok then
+	elseif not ok and not RunService:IsStudio() then -- Studio often isn't allowed to read saved data
 		warn("[Donations] Couldn't load the total raised:", saved)
 	end
 end)
@@ -255,9 +256,26 @@ local function loadProducts(found: { Option })
 end
 
 local function loadOptions()
+	local passes: { Option } = {}
+	local products: { Option } = {}
+	loadPasses(passes)
+	loadProducts(products)
+
+	-- Developer products can be bought again and again, gamepasses only once. So when there's a
+	-- "Donate" product with the same price as a gamepass, the menu shows the product instead.
 	local found: { Option } = {}
-	loadPasses(found)
-	loadProducts(found)
+	local productPrices: { [number]: boolean } = {}
+	for _, product in products do
+		productsById[product.id] = product.price
+		productPrices[product.price] = true
+		table.insert(found, product)
+	end
+	for _, pass in passes do
+		passesById[pass.id] = pass.price -- still counts if someone already has the prompt open
+		if not productPrices[pass.price] then
+			table.insert(found, pass)
+		end
+	end
 
 	table.sort(found, function(a, b)
 		if a.price ~= b.price then
@@ -268,11 +286,6 @@ local function loadOptions()
 
 	local prices = {}
 	for order, option in found do
-		if option.kind == "pass" then
-			passesById[option.id] = option.price
-		else
-			productsById[option.id] = option.price
-		end
 		local value = Instance.new("IntValue")
 		value.Name = "R$ " .. option.price
 		value.Value = option.id
@@ -280,7 +293,7 @@ local function loadOptions()
 		value:SetAttribute("Price", option.price)
 		value:SetAttribute("Order", order)
 		value.Parent = options
-		table.insert(prices, "R$ " .. option.price)
+		table.insert(prices, "R$ " .. option.price .. (if option.kind == "pass" then " (once)" else " (repeatable)"))
 	end
 
 	if #found == 0 then
