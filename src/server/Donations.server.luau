@@ -142,7 +142,7 @@ local stroke = Instance.new("UIStroke")
 stroke.Color = PINK
 stroke.Thickness = 6
 stroke.Parent = frame
-label(frame, "Support Pretty Pink Tower!", 12, 60, PINK)
+label(frame, "Support Cherry Blossom Tower!", 12, 60, PINK)
 local raisedLabel = label(frame, "Thank you for every Robux!", 80, 54, TEXT)
 local lastLabel = label(frame, "Be the first to donate 💖", 142, 44, TEXT)
 

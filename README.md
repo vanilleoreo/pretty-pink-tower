@@ -1,6 +1,6 @@
 # pretty-pink-tower
 
-Roblox game. Scripts are edited in VS Code and live-synced into Roblox Studio with [Rojo](https://rojo.space).
+Roblox game **Cherry Blossom Tower**. Scripts are edited in VS Code and live-synced into Roblox Studio with [Rojo](https://rojo.space).
 
 ## What lives where
 

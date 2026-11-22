@@ -1,6 +1,6 @@
 -- Every gamepass in the game, in one place. The shop and the giver pads both read this.
 -- Make passes and set their prices on the Creator Hub:
---   create.roblox.com → Creations → pretty pink tower → Monetization → Passes
+--   create.roblox.com → Creations → Cherry Blossom Tower → Monetization → Passes
 -- then put each pass's ID here (replace nil with the number, e.g. id = 1234567890).
 local Passes: { [string]: { name: string, description: string, id: number? } } = {
 	SpeedCoil = {

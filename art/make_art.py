@@ -1,4 +1,4 @@
-"""Draws the Roblox game icon and thumbnail for Pretty Pink Tower.
+"""Draws the Roblox game icon and thumbnail for Cherry Blossom Tower.
 
 Writes icon.html (512x512) and thumbnail.html (1920x1080) next to this file. Render them to PNG with:
 
@@ -218,7 +218,7 @@ def thumbnail():
     # fluffy cloud floor
     for i in range(12):
         body.append(cloud(80 + i * 170, 1040 + (i % 2) * 18, 1.5))
-    body.append(title(110, 330, "Pretty Pink", 172, rotate=-4))
+    body.append(title(110, 325, "Cherry Blossom", 140, rotate=-4))
     body.append(title(150, 545, "Tower", 230, rotate=-4))
     body.append(
         '<g transform="rotate(-4 160 650)"><rect x="150" y="610" width="590" height="76" rx="38" fill="#ff4f9a" '
@@ -241,7 +241,7 @@ def icon():
     body.append(tower(256, 468, 5, 44, 150, 118, line=4, flag=False))
     for i in range(5):
         body.append(cloud(10 + i * 125, 492 + (i % 2) * 8, 0.85))
-    body.append(title(256, 92, "Pretty Pink", 74, anchor="middle"))
+    body.append(title(256, 86, "Cherry Blossom", 60, anchor="middle"))
     body.append(title(256, 178, "Tower", 98, anchor="middle"))
     return page(s, s, "\n".join(body))
 
