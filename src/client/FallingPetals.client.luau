@@ -6,13 +6,13 @@
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 
-local PETALS = 110 -- how many petals are around you at once
+local PETALS = 260 -- how many petals are around you at once
 local RADIUS = 50 -- how far around you they fall (studs)
 local START_ABOVE = { 8, 45 } -- how high above your camera a new petal starts (studs)
 local FALL_SPEED = { 2.5, 5 } -- studs per second
 local REST_TIME = { 1.5, 4 } -- seconds a petal lies on the ground before floating down again
 local WIND = Vector3.new(1.2, 0, 0.6) -- a gentle breeze (studs per second)
-local PETAL_SIZE = Vector3.new(0.6, 0.06, 0.45)
+local PETAL_SIZE = Vector3.new(0.7, 0.06, 0.5)
 local COLORS = {
 	Color3.fromRGB(255, 183, 213),
 	Color3.fromRGB(255, 160, 200),

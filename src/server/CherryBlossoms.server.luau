@@ -24,7 +24,7 @@ local BUSHES = { -- { x, z }
 	{ -68.5, 154 },
 }
 
-local FALLEN_PETAL_PATCHES = 34 -- little pink patches scattered over the lobby floor
+local FALLEN_PETAL_PATCHES = 60 -- little pink patches scattered over the lobby floor
 local LOBBY = { minX = -141, maxX = -69, minZ = 115, maxZ = 168 }
 local KEEP_CLEAR = { -- { minX, maxX, minZ, maxZ }: no petal patches on the spawn, givers or stand
 	{ -82, -66, 112, 128 },
