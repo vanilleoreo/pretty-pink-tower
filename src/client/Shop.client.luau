@@ -241,6 +241,12 @@ openButton.Activated:Connect(function()
 	panel.Visible = not panel.Visible
 	if panel.Visible then
 		refreshAll() -- fetch prices each time, in case they changed
+		-- don't show the donate menu on top of the shop
+		local donate = player.PlayerGui:FindFirstChild("Donate")
+		local donatePanel = donate and donate:FindFirstChild("Panel")
+		if donatePanel and donatePanel:IsA("GuiObject") then
+			donatePanel.Visible = false
+		end
 	end
 end)
 
