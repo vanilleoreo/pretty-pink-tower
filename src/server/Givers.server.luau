@@ -5,6 +5,12 @@ local InsertService = game:GetService("InsertService")
 -- Gamepasses for the "Robux Items" pads
 local GRAVITY_COIL_PASS_ID = 2058431498
 local SPEED_COIL_PASS_ID = nil -- paste your Speed Coil gamepass ID here once you've made one
+local CARPET_PASS_ID = 2045738837 -- the carpet pads and Austin use this one; it's only checked here
+
+-- The price range every pass should be in. Prices themselves are set on the Creator Hub website
+-- (create.roblox.com), not in scripts: this is only used to warn you if one is off.
+local MIN_PRICE = 30
+local MAX_PRICE = 100
 
 -- Every giver pad this script runs. "inside" is the name of the model the giver sits in, because
 -- some givers share a name but give different things. "forSale" pads need their gamepass.
@@ -135,4 +141,36 @@ end)
 
 Players.PlayerRemoving:Connect(function(player)
 	owners[player] = nil
+end)
+
+-- When the game starts, check every gamepass and say in the Output if one can't be bought yet
+local function checkPass(name, passId)
+	if not passId then
+		warn("[Passes] " .. name .. " has no gamepass yet: create one on the Creator Hub and put its ID in Givers")
+		return
+	end
+
+	local ok, info = pcall(MarketplaceService.GetProductInfoAsync, MarketplaceService, passId, Enum.InfoType.GamePass)
+	if not ok then
+		warn("[Passes] Couldn't look up the " .. name .. " pass (" .. passId .. "): " .. tostring(info))
+		return
+	end
+
+	local creatorId = info.Creator and info.Creator.CreatorTargetId
+	local price = info.PriceInRobux
+	if game.CreatorId ~= 0 and creatorId and creatorId ~= game.CreatorId then
+		warn("[Passes] The " .. name .. " pass (" .. passId .. ") belongs to someone else, so its Robux won't go to you")
+	elseif not info.IsForSale then
+		warn("[Passes] " .. name .. " (" .. passId .. ") isn't for sale: turn on 'Item for Sale' on the Creator Hub")
+	elseif not price or price < MIN_PRICE or price > MAX_PRICE then
+		warn(`[Passes] {name} costs {price} Robux, outside {MIN_PRICE}-{MAX_PRICE}: change it on the Creator Hub`)
+	else
+		print(`[Passes] {name} is for sale for {price} Robux`)
+	end
+end
+
+task.spawn(function()
+	checkPass("Rainbow Magic Carpet", CARPET_PASS_ID)
+	checkPass("Gravity Coil", GRAVITY_COIL_PASS_ID)
+	checkPass("Speed Coil", SPEED_COIL_PASS_ID)
 end)
