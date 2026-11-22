@@ -1,0 +1,14 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Rojo: serve (live sync to Roblox Studio)",
+      "type": "shell",
+      "command": "if curl -s --max-time 2 http://localhost:34872/api/rojo > /dev/null; then echo 'Rojo is already running on port 34872 - live sync is active.'; else rojo serve; fi",
+      "isBackground": true,
+      "problemMatcher": [],
+      "runOptions": { "runOn": "folderOpen" },
+      "presentation": { "reveal": "silent", "panel": "dedicated" }
+    }
+  ]
+}
