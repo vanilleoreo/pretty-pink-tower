@@ -1,6 +1,7 @@
--- Cherry blossom decorations around the lobby: a few cherry blossom trees, pink blossom bushes
--- along the edges, and fallen petals on the floor. (The petals falling from the sky are made on
--- each player's screen by FallingPetals.client.luau.)
+-- Cherry blossom decorations: a few cherry blossom trees, pink blossom bushes and fallen petals
+-- in the lobby, and inside the Troll Tower a tree on the ground floor, blossom garlands along the
+-- walls every 50 studs and blossom vines up the corners. (The petals falling from the sky are
+-- made on each player's screen by FallingPetals.client.luau.)
 --
 -- Everything is built when the game starts, into a folder called "CherryBlossoms" in Workspace.
 -- To move or add things, change the lists below. Spots without a floor under them are skipped.
@@ -139,7 +140,7 @@ end
 
 -- The decorations ---------------------------------------------------------------
 
-local function tree(x: number, z: number, s: number)
+local function tree(x: number, z: number, s: number, parent: Instance)
 	local floor = floorAt(x, z)
 	if not floor then
 		warn(`[CherryBlossoms] No floor for the tree at {x}, {z}: skipped`)
@@ -171,10 +172,10 @@ local function tree(x: number, z: number, s: number)
 	petalPatch(model, floor, 16 * s, 0.25)
 
 	model.PrimaryPart = model:FindFirstChild("Trunk") :: BasePart
-	model.Parent = folder
+	model.Parent = parent
 end
 
-local function bush(x: number, z: number)
+local function bush(x: number, z: number, parent: Instance)
 	local floor = floorAt(x, z)
 	if not floor then
 		return
@@ -183,38 +184,41 @@ local function bush(x: number, z: number)
 	model.Name = "BlossomBush"
 	blossomClump(model, floor + Vector3.new(0, 1.3, 0), rng:NextNumber(2.8, 3.6))
 	petalPatch(model, floor, 5, 0.3)
-	model.Parent = folder
-end
-
-local function inKeepClear(x: number, z: number): boolean
-	for _, box in KEEP_CLEAR do
-		if x >= box[1] and x <= box[2] and z >= box[3] and z <= box[4] then
-			return true
-		end
-	end
-	return false
+	model.Parent = parent
 end
 
 for _, spot in TREES do
-	tree(spot[1], spot[2], spot[3])
+	tree(spot[1], spot[2], spot[3], folder)
 end
 for _, spot in BUSHES do
-	bush(spot[1], spot[2])
+	bush(spot[1], spot[2], folder)
+end
+
+-- Scatter fallen petal patches over an area of floor
+local function scatterPetals(parent: Instance, area, count: number, keepClear: { { number } }): number
+	local placed, tries = 0, 0
+	while placed < count and tries < count * 10 do
+		tries += 1
+		local x, z = rng:NextNumber(area.minX, area.maxX), rng:NextNumber(area.minZ, area.maxZ)
+		local blocked = false
+		for _, box in keepClear do
+			if x >= box[1] and x <= box[2] and z >= box[3] and z <= box[4] then
+				blocked = true
+			end
+		end
+		local floor = if blocked then nil else floorAt(x, z)
+		if floor then
+			petalPatch(parent, floor, rng:NextNumber(1.5, 4.5), rng:NextNumber(0.15, 0.4))
+			placed += 1
+		end
+	end
+	return placed
 end
 
 local patches = Instance.new("Folder")
 patches.Name = "FallenPetals"
 patches.Parent = folder
-local placed, tries = 0, 0
-while placed < FALLEN_PETAL_PATCHES and tries < FALLEN_PETAL_PATCHES * 10 do
-	tries += 1
-	local x, z = rng:NextNumber(LOBBY.minX, LOBBY.maxX), rng:NextNumber(LOBBY.minZ, LOBBY.maxZ)
-	local floor = if inKeepClear(x, z) then nil else floorAt(x, z)
-	if floor then
-		petalPatch(patches, floor, rng:NextNumber(1.5, 4.5), rng:NextNumber(0.15, 0.4))
-		placed += 1
-	end
-end
+local placed = scatterPetals(patches, LOBBY, FALLEN_PETAL_PATCHES, KEEP_CLEAR)
 
 folder.Parent = workspace
 
@@ -227,3 +231,155 @@ for _, child in folder:GetChildren() do
 	end
 end
 print(`[CherryBlossoms] Made {trees} cherry blossom trees, {bushes} bushes and {placed} fallen petal patches`)
+
+-- Inside the Troll Tower -------------------------------------------------------------
+
+local TOWER_NAME = "💥 Troll Tower Obby Parkour Fun Hard Easy"
+local INNER = { west = -139.45, east = -71.45, south = 170.26, north = 238.26 } -- inside faces of its walls
+local SEAMS = { 49, 99, 149, 199, 249, 299, 349, 397 } -- garland heights: where the wall colour changes, and the top
+local GARLAND_SPACING = 3 -- studs between blossoms in a garland
+local VINE_SPACING = 4.5 -- studs between blossoms going up a corner
+local TOWER_TREE = { -108, 200, 1.25 } -- middle of the ground floor
+local TOWER_BUSHES = { { -134, 222 }, { -90, 223 }, { -134, 190 }, { -90, 188 } }
+local TOWER_PETAL_PATCHES = 24
+local TOWER_FLOOR = { minX = -135, maxX = -85, minZ = 174, maxZ = 225 }
+
+local tower = workspace:WaitForChild(TOWER_NAME, 30)
+if not tower then
+	warn("[CherryBlossoms] Couldn't find the Troll Tower, so no blossoms inside it")
+	return
+end
+
+local inside = Instance.new("Folder")
+inside.Name = "Tower"
+
+local probe = RaycastParams.new()
+probe.FilterType = Enum.RaycastFilterType.Exclude
+probe.FilterDescendantsInstances = { folder }
+
+local nearby = OverlapParams.new()
+nearby.FilterType = Enum.RaycastFilterType.Exclude
+nearby.FilterDescendantsInstances = { folder }
+
+-- How far a part reaches from its centre in a direction
+local function reach(part: BasePart, axis: Vector3): number
+	local cf, size = part.CFrame, part.Size
+	return 0.5
+		* (
+			math.abs(cf.RightVector:Dot(axis)) * size.X
+			+ math.abs(cf.UpVector:Dot(axis)) * size.Y
+			+ math.abs(cf.LookVector:Dot(axis)) * size.Z
+		)
+end
+
+-- The wall surface behind a spot on the wall line, or nil if there's no wall there (a doorway)
+-- or something is in front of the wall
+local function wallBehind(onWall: Vector3, normal: Vector3): RaycastResult?
+	local result = workspace:Raycast(onWall + normal * 3, -normal * 4, probe)
+	if result and result.Distance >= 2.5 then
+		return result
+	end
+	return nil
+end
+
+type Plane = { normal: Vector3, at: number }
+
+-- True if there's nothing but wall within `radius` of the spot, so a blossom there won't get in
+-- the way of the obby or hide a trap
+local function isClear(position: Vector3, radius: number, walls: { Plane }): boolean
+	for _, part in workspace:GetPartBoundsInRadius(position, radius, nearby) do
+		local isWall = false
+		for _, wall in walls do
+			if part.Position:Dot(wall.normal) + reach(part, wall.normal) <= wall.at + 0.3 then
+				isWall = true -- it doesn't stick out of this wall into the tower
+				break
+			end
+		end
+		if not isWall then
+			return false
+		end
+	end
+	return true
+end
+
+-- A garland of blossoms along one wall at height y
+local garlandBlossoms = 0
+local function garland(y: number, from: Vector3, to: Vector3, normal: Vector3)
+	local along, length = (to - from).Unit, (to - from).Magnitude
+	local i = 0
+	for t = 2, length - 2, GARLAND_SPACING do
+		local wall = wallBehind(from + along * t + Vector3.new(0, y, 0), normal)
+		if wall then
+			local center = wall.Position + normal * 0.6 + Vector3.new(0, rng:NextNumber(-0.3, 0.3), 0)
+			if isClear(center + normal * 0.4, 2, { { normal = normal, at = wall.Position:Dot(normal) } }) then
+				i += 1
+				garlandBlossoms += 1
+				ball(inside, center, if i % 2 == 0 then 2.2 else 1.6, pick(BLOSSOM_COLORS), "Blossom")
+				if i % 3 == 0 then
+					ball(inside, center + normal * 0.9 + Vector3.new(0, 0.35, 0), 0.55, pick(FLOWER_COLORS), "Flower")
+				end
+				if i % 4 == 0 then -- a little bunch hanging down
+					ball(inside, center + normal * 0.2 + Vector3.new(0, -1.4, 0), 1.1, pick(BLOSSOM_COLORS), "Blossom")
+				end
+			end
+		end
+	end
+end
+
+local walls = {
+	{ from = Vector3.new(INNER.west, 0, INNER.south), to = Vector3.new(INNER.west, 0, INNER.north), normal = Vector3.xAxis },
+	{ from = Vector3.new(INNER.east, 0, INNER.south), to = Vector3.new(INNER.east, 0, INNER.north), normal = -Vector3.xAxis },
+	{ from = Vector3.new(INNER.west, 0, INNER.south), to = Vector3.new(INNER.east, 0, INNER.south), normal = Vector3.zAxis },
+	{ from = Vector3.new(INNER.west, 0, INNER.north), to = Vector3.new(INNER.east, 0, INNER.north), normal = -Vector3.zAxis },
+}
+for _, y in SEAMS do
+	for _, wall in walls do
+		garland(y, wall.from, wall.to, wall.normal)
+	end
+end
+
+-- Blossom vines climbing the four inside corners
+local vineBlossoms = 0
+local corners = {
+	{ x = INNER.west, z = INNER.south, nx = Vector3.xAxis, nz = Vector3.zAxis },
+	{ x = INNER.east, z = INNER.south, nx = -Vector3.xAxis, nz = Vector3.zAxis },
+	{ x = INNER.west, z = INNER.north, nx = Vector3.xAxis, nz = -Vector3.zAxis },
+	{ x = INNER.east, z = INNER.north, nx = -Vector3.xAxis, nz = -Vector3.zAxis },
+}
+for _, corner in corners do
+	local out = corner.nx + corner.nz -- diagonally into the tower
+	local i = 0
+	for y = 3, 395, VINE_SPACING do
+		local spot = Vector3.new(corner.x, y, corner.z) + out * 1.1
+		-- both walls have to be there (not a doorway)
+		local wallX = wallBehind(Vector3.new(corner.x, y, spot.Z), corner.nx)
+		local wallZ = wallBehind(Vector3.new(spot.X, y, corner.z), corner.nz)
+		if wallX and wallZ then
+			local planes = {
+				{ normal = corner.nx, at = wallX.Position:Dot(corner.nx) },
+				{ normal = corner.nz, at = wallZ.Position:Dot(corner.nz) },
+			}
+			if isClear(spot, 1.8, planes) then
+				i += 1
+				vineBlossoms += 1
+				ball(inside, spot + Vector3.new(0, rng:NextNumber(-0.4, 0.4), 0), if i % 2 == 0 then 1.9 else 1.4, pick(BLOSSOM_COLORS), "Blossom")
+				if i % 2 == 1 then
+					ball(inside, spot + out * 0.7 + Vector3.new(0, 0.5, 0), 0.5, pick(FLOWER_COLORS), "Flower")
+				end
+			end
+		end
+	end
+end
+
+-- A cherry tree, bushes and fallen petals on the ground floor
+tree(TOWER_TREE[1], TOWER_TREE[2], TOWER_TREE[3], inside)
+for _, spot in TOWER_BUSHES do
+	bush(spot[1], spot[2], inside)
+end
+local towerPatches = scatterPetals(inside, TOWER_FLOOR, TOWER_PETAL_PATCHES, {})
+
+inside.Parent = folder
+print(
+	`[CherryBlossoms] Inside the tower: {garlandBlossoms} garland blossoms, {vineBlossoms} vine blossoms, `
+		.. `a tree, bushes and {towerPatches} fallen petal patches`
+)

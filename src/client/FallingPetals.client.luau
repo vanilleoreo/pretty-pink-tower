@@ -1,7 +1,8 @@
 -- Cherry blossom petals drifting down from the sky, all around you wherever you go.
 --
--- Each petal floats down with the wind, lands on whatever is below it (so petals don't fall
--- through roofs into rooms), lies there for a moment, then starts again somewhere near you.
+-- Each petal starts somewhere you can see, floats down with the wind, lands on whatever is below
+-- it (so petals don't fall through roofs into rooms), lies there for a moment, then starts again
+-- somewhere near you. Indoors, like inside the tower, they fall in the room with you.
 -- The petals are made on your own screen, so they cost the server nothing.
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -58,14 +59,26 @@ local cframes: { CFrame } = {}
 -- Start (or restart) a petal somewhere above and around the camera.
 -- startAnywhere = put it anywhere between the sky and the ground (used when the game starts,
 -- so the sky isn't empty while the first petals fall)
-local function restart(petal: Petal, startAnywhere: boolean)
-	local focus = workspace.CurrentCamera.CFrame.Position
+local function randomStart(focus: Vector3): Vector3
 	local angle, distance = rng:NextNumber(0, math.pi * 2), RADIUS * math.sqrt(rng:NextNumber())
-	local start = Vector3.new(
+	return Vector3.new(
 		focus.X + math.cos(angle) * distance,
 		focus.Y + rng:NextNumber(START_ABOVE[1], START_ABOVE[2]),
 		focus.Z + math.sin(angle) * distance
 	)
+end
+
+local function restart(petal: Petal, startAnywhere: boolean)
+	local focus = workspace.CurrentCamera.CFrame.Position
+	-- start somewhere you can see from your camera, so indoors (like inside the tower) the petals
+	-- fall in the room with you instead of outside the walls
+	local start = randomStart(focus)
+	for _ = 1, 6 do
+		if not workspace:Raycast(focus, start - focus, rayParams) then
+			break
+		end
+		start = randomStart(focus)
+	end
 	petal.speed = rng:NextNumber(FALL_SPEED[1], FALL_SPEED[2])
 
 	-- where will it land? follow the way it drifts (down + wind)
