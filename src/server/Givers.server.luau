@@ -1,11 +1,12 @@
 local MarketplaceService = game:GetService("MarketplaceService")
 local Players = game:GetService("Players")
 local InsertService = game:GetService("InsertService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
--- Gamepasses for the "Robux Items" pads
-local GRAVITY_COIL_PASS_ID = 2058431498
-local SPEED_COIL_PASS_ID = nil -- paste your Speed Coil gamepass ID here once you've made one
-local CARPET_PASS_ID = 2045738837 -- the carpet pads and Austin use this one; it's only checked here
+-- Gamepass IDs live in src/shared/Passes.luau, so the shop and the pads always match
+local Passes = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("Passes"))
+local GRAVITY_COIL_PASS_ID = Passes.GravityCoil.id
+local SPEED_COIL_PASS_ID = Passes.SpeedCoil.id
 
 -- The price range every pass should be in. Prices themselves are set on the Creator Hub website
 -- (create.roblox.com), not in scripts: this is only used to warn you if one is off.
@@ -146,11 +147,11 @@ end)
 -- When the game starts, check every gamepass and say in the Output if one can't be bought yet
 local function checkPass(name, passId)
 	if not passId then
-		warn("[Passes] " .. name .. " has no gamepass yet: create one on the Creator Hub and put its ID in Givers")
+		warn("[Passes] " .. name .. " has no gamepass yet: create one on the Creator Hub and put its ID in Passes")
 		return
 	end
 
-	local ok, info = pcall(MarketplaceService.GetProductInfoAsync, MarketplaceService, passId, Enum.InfoType.GamePass)
+	local ok, info = pcall(MarketplaceService.GetProductInfo, MarketplaceService, passId, Enum.InfoType.GamePass)
 	if not ok then
 		warn("[Passes] Couldn't look up the " .. name .. " pass (" .. passId .. "): " .. tostring(info))
 		return
@@ -170,7 +171,7 @@ local function checkPass(name, passId)
 end
 
 task.spawn(function()
-	checkPass("Rainbow Magic Carpet", CARPET_PASS_ID)
-	checkPass("Gravity Coil", GRAVITY_COIL_PASS_ID)
-	checkPass("Speed Coil", SPEED_COIL_PASS_ID)
+	for _, pass in Passes do
+		checkPass(pass.name, pass.id)
+	end
 end)

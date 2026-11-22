@@ -2,6 +2,12 @@
   "name": "pretty-pink-tower",
   "tree": {
     "$className": "DataModel",
+    "ReplicatedStorage": {
+      "$className": "ReplicatedStorage",
+      "Shared": {
+        "$path": "src/shared"
+      }
+    },
     "ServerScriptService": {
       "$className": "ServerScriptService",
       "$path": "src/server"

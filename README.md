@@ -8,6 +8,7 @@ Roblox game. Scripts are edited in VS Code and live-synced into Roblox Studio wi
 | --- | --- |
 | `src/server/` | `ServerScriptService` |
 | `src/client/` | `StarterPlayer.StarterPlayerScripts` |
+| `src/shared/` | `ReplicatedStorage.Shared` (used by both server and client, e.g. gamepass IDs) |
 | `src/character/` | `StarterPlayer.StarterCharacterScripts` |
 | `pretty-pink-tower.rbxl` | Backup of the whole place (map, models, free-model scripts) |
 
