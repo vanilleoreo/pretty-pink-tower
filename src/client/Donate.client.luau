@@ -2,6 +2,8 @@
 -- The menu also opens when you walk up to the donation stand in the lobby.
 -- When you donate, confetti rains down your screen and a big "thank you" pops up.
 -- When someone else donates, you see a small thank-you message at the top of the screen.
+-- Developers own every gamepass in their own game, so for them a gamepass button does a free
+-- test donation (confetti and pop-up, no Robux) instead of a purchase.
 -- (The amounts and the stand come from the Donations server script.)
 local MarketplaceService = game:GetService("MarketplaceService")
 local Players = game:GetService("Players")
@@ -26,6 +28,8 @@ local playerGui = player:WaitForChild("PlayerGui")
 local donations = ReplicatedStorage:WaitForChild("Donations")
 local options = donations:WaitForChild("Options")
 local thanks = donations:WaitForChild("Thanks") :: RemoteEvent
+local testDonation = donations:WaitForChild("TestDonation") :: RemoteEvent
+local isDeveloper = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("IsDeveloper"))
 
 local function make(className: string, props: { [string]: any }, children: { Instance }?): any
 	local instance: any = Instance.new(className)
@@ -180,6 +184,8 @@ local function addAmount(value: Instance)
 	button.Activated:Connect(function()
 		if button:GetAttribute("Donated") then
 			return
+		elseif isPass and isDeveloper(player) then
+			testDonation:FireServer(id) -- you can't buy your own gamepass, so this is a free test
 		elseif isPass then
 			MarketplaceService:PromptGamePassPurchase(player, id)
 		else
@@ -195,7 +201,8 @@ local function addAmount(value: Instance)
 		else
 			task.spawn(function()
 				local ok, owns = pcall(MarketplaceService.UserOwnsGamePassAsync, MarketplaceService, player.UserId, id)
-				if ok and owns then
+				-- (developers own all their own gamepasses, so for them it doesn't mean they donated)
+				if ok and owns and not isDeveloper(player) then
 					markDonated(button)
 				end
 			end)
@@ -424,10 +431,12 @@ popup.Parent = party
 
 local popupShownAt = 0
 
-local function celebrate(amount: number)
+local function celebrate(amount: number, isTest: boolean)
 	confetti()
 
-	popupAmount.Text = "You donated R$ " .. amount
+	popupAmount.Text = if isTest
+		then "Test donation of R$ " .. amount .. " (no Robux spent)"
+		else "You donated R$ " .. amount
 	popup.Visible = true
 	popupScale.Scale = 0
 	TweenService:Create(popupScale, TweenInfo.new(0.5, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1 })
@@ -449,10 +458,10 @@ local function celebrate(amount: number)
 	end)
 end
 
-thanks.OnClientEvent:Connect(function(name: string, amount: number, userId: number)
+thanks.OnClientEvent:Connect(function(name: string, amount: number, userId: number, isTest: boolean?)
 	if userId == player.UserId then
 		setOpen(false) -- close the donate menu so the pop-up is easy to see
-		celebrate(amount)
+		celebrate(amount, isTest == true)
 	else
 		showBanner("💖 " .. name .. " donated R$ " .. amount .. "! Thank you! 💖")
 	end

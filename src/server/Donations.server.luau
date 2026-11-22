@@ -18,6 +18,7 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
 local DonationPasses = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("DonationPasses"))
+local isDeveloper = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("IsDeveloper"))
 
 local NAME_MATCH = "donat" -- developer products whose name contains this (any capitals) are donations
 local DEFAULT_SPOT = CFrame.lookAt(Vector3.new(-108, -0.8, 146), Vector3.new(-108, -0.8, 140)) -- left of the givers, facing the spawn
@@ -39,9 +40,15 @@ local options = Instance.new("Folder") -- one IntValue per amount: Value = produ
 options.Name = "Options"
 options.Parent = donations
 
-local thanks = Instance.new("RemoteEvent") -- (donor name, amount, donor UserId) to everyone
+local thanks = Instance.new("RemoteEvent") -- (donor name, amount, donor UserId, is a test?) to everyone
 thanks.Name = "Thanks"
 thanks.Parent = donations
+
+-- The game's owner already owns every gamepass in their own game and can't buy them, so when a
+-- developer presses a gamepass donation, their screen asks for a free test donation instead.
+local testDonation = Instance.new("RemoteEvent") -- (gamepass ID) from a developer's screen
+testDonation.Name = "TestDonation"
+testDonation.Parent = donations
 
 donations.Parent = ReplicatedStorage
 
@@ -361,6 +368,15 @@ MarketplaceService.ProcessReceipt = function(receipt)
 	task.spawn(recordDonation, receipt.PlayerId, receipt.CurrencySpent or price)
 	return Enum.ProductPurchaseDecision.PurchaseGranted
 end
+
+-- Test donations by a developer: the same confetti and thank-you, but only on their own
+-- screen, no Robux spent and nothing added to the total
+testDonation.OnServerEvent:Connect(function(player, passId)
+	local price = if typeof(passId) == "number" then passesById[passId] else nil
+	if price and isDeveloper(player) then
+		thanks:FireClient(player, player.DisplayName, price, player.UserId, true)
+	end
+end)
 
 -- Gamepass donations (Roblox tells the server when someone buys one)
 MarketplaceService.PromptGamePassPurchaseFinished:Connect(function(buyer, passId, purchased)
