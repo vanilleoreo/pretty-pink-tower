@@ -188,15 +188,19 @@ local STORE_KEY = "Totals"
 type Totals = { Raised: number?, LastName: string?, LastAmount: number? }
 local totals: Totals = { Raised = 0 }
 
-task.spawn(function()
-	local ok, saved = pcall(store.GetAsync, store, STORE_KEY)
-	if ok and typeof(saved) == "table" then
-		totals = saved
-		showTotals(totals.Raised or 0, totals.LastName, totals.LastAmount)
-	elseif not ok and not RunService:IsStudio() then -- Studio often isn't allowed to read saved data
-		warn("[Donations] Couldn't load the total raised:", saved)
-	end
-end)
+-- Not in Studio: Studio usually isn't allowed to read saved data, and Roblox prints a red
+-- error when it tries (test donations in Studio aren't saved anyway)
+if not RunService:IsStudio() then
+	task.spawn(function()
+		local ok, saved = pcall(store.GetAsync, store, STORE_KEY)
+		if ok and typeof(saved) == "table" then
+			totals = saved
+			showTotals(totals.Raised or 0, totals.LastName, totals.LastAmount)
+		elseif not ok then
+			warn("[Donations] Couldn't load the total raised:", saved)
+		end
+	end)
+end
 
 -- Donation amounts --------------------------------------------------------------
 
