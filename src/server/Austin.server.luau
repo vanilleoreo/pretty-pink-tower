@@ -25,7 +25,7 @@ local function getTemplate()
 		if ok then
 			template = model:FindFirstChildWhichIsA("Tool")
 		else
-			warn("Couldn't load item " .. ITEM_ID .. ": " .. tostring(model))
+			warn("Couldn't load item! " .. ITEM_ID .. ": " .. tostring(model))
 		end
 	end
 	return template
