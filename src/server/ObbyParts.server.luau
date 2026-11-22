@@ -5,8 +5,6 @@ local TweenService = game:GetService("TweenService")
 local obby = workspace:WaitForChild("💥 Troll Tower Obby Parkour Fun Hard Easy")
 
 -- Settings you can tweak
-local BOUNCE_POWER = 100 -- how hard Bounce Parts throw you up (100 is about 25 studs high)
-local BOUNCE_COOLDOWN = 0.5 -- seconds before the same player can be bounced again
 local DAMAGE_COOLDOWN = 0.2 -- seconds between hits from kill parts, so KILLPART-5 doesn't melt you instantly
 local CONVEYOR_SPEED = 25 -- used if an AutoSpeed part has no Speed value inside it
 
@@ -44,29 +42,7 @@ local function setupDisappearing(part)
 	end)
 end
 
--- Bounce parts: see-through boxes you walk into that launch you upwards
-local bouncing = {} -- characters that were just bounced
-
-local function setupBouncing(part)
-	part.Touched:Connect(function(hit)
-		local character = getCharacter(hit)
-		if not character or bouncing[character] then
-			return
-		end
-		local root = character:FindFirstChild("HumanoidRootPart")
-		if not root then
-			return
-		end
-		bouncing[character] = true
-
-		-- Keep their sideways movement so they can still steer, only replace the up/down speed
-		local velocity = root.AssemblyLinearVelocity
-		root.AssemblyLinearVelocity = Vector3.new(velocity.X, BOUNCE_POWER, velocity.Z)
-
-		task.wait(BOUNCE_COOLDOWN)
-		bouncing[character] = nil
-	end)
-end
+-- (Bounce Parts, the see-through boxes, are fly zones now: see src/client/FlyZones.client.luau)
 
 -- Ice parts: no friction, so you slide around
 local function setupIce(part)
@@ -199,7 +175,6 @@ end
 -- Which setup each part gets, by part name (names must match exactly, capitals too)
 local setups = {
 	["Disappearing Part"] = setupDisappearing,
-	["Bounce Part"] = setupBouncing,
 	["Ice Part"] = setupIce,
 	["KILLPART-5"] = function(part)
 		setupKill(part, 5)
