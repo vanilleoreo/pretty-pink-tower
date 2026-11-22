@@ -114,6 +114,8 @@ for i = 1, PETALS do
 	cframes[i] = CFrame.new(petal.position)
 end
 
+print(`[FallingPetals] {PETALS} petals are falling around you`)
+
 local clock = 0
 RunService.RenderStepped:Connect(function(deltaTime)
 	clock += deltaTime

@@ -217,3 +217,13 @@ while placed < FALLEN_PETAL_PATCHES and tries < FALLEN_PETAL_PATCHES * 10 do
 end
 
 folder.Parent = workspace
+
+local trees, bushes = 0, 0
+for _, child in folder:GetChildren() do
+	if child.Name == "CherryBlossomTree" then
+		trees += 1
+	elseif child.Name == "BlossomBush" then
+		bushes += 1
+	end
+end
+print(`[CherryBlossoms] Made {trees} cherry blossom trees, {bushes} bushes and {placed} fallen petal patches`)
