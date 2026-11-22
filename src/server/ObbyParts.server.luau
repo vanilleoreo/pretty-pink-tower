@@ -135,32 +135,64 @@ local function setupTeleportPad(part)
 end
 
 -- Troll buttons: step on the green button and the grey platform next to it vanishes for a bit,
--- dropping whoever is standing on it
+-- dropping whoever is standing on it. The red/cyan button brings it back straight away.
 local TROLL_PLATFORM_TIME = 3 -- seconds the platform stays gone
 
-local function setupTrollButton(button, platformName)
+local platformLooks = {} -- what each troll platform normally looks like, so it can be put back
+local platformHiddenAt = {} -- when each platform was made to vanish (nil while it's there)
+
+local function findTrollPlatform(button, platformName)
 	local platform = obby:FindFirstChild(platformName, true)
 	if not (platform and platform:IsA("BasePart")) then
 		warn("[ObbyParts] " .. button.Name .. " can't find its platform " .. platformName)
+		return nil
+	end
+	if not platformLooks[platform] then
+		platformLooks[platform] = { Transparency = platform.Transparency, CanCollide = platform.CanCollide }
+	end
+	return platform
+end
+
+local function showPlatform(platform)
+	local look = platformLooks[platform]
+	platform.Transparency = look.Transparency
+	platform.CanCollide = look.CanCollide
+	platformHiddenAt[platform] = nil
+end
+
+local function setupTrollButton(button, platformName)
+	local platform = findTrollPlatform(button, platformName)
+	if not platform then
 		return
 	end
-	local startTransparency = platform.Transparency
-	local startCanCollide = platform.CanCollide
-	local pressed = false
 
 	button.Touched:Connect(function(hit)
-		if pressed or not getCharacter(hit) then
+		if platformHiddenAt[platform] or not getCharacter(hit) then
 			return
 		end
-		pressed = true
-
+		local hiddenAt = os.clock()
+		platformHiddenAt[platform] = hiddenAt
 		platform.Transparency = 1
 		platform.CanCollide = false
-		task.wait(TROLL_PLATFORM_TIME)
-		platform.Transparency = startTransparency
-		platform.CanCollide = startCanCollide
 
-		pressed = false
+		task.wait(TROLL_PLATFORM_TIME)
+		-- Skip if a red/cyan button already brought it back (and it hasn't vanished again since)
+		if platformHiddenAt[platform] == hiddenAt then
+			showPlatform(platform)
+		end
+	end)
+end
+
+local function setupReturnButton(button, platformName)
+	local platform = findTrollPlatform(button, platformName)
+	if not platform then
+		return
+	end
+
+	button.Touched:Connect(function(hit)
+		if platformHiddenAt[platform] and getCharacter(hit) then
+			showPlatform(platform)
+		end
 	end)
 end
 
@@ -182,6 +214,12 @@ local setups = {
 	end,
 	["button2"] = function(part) -- green button next to the pit, higher up
 		setupTrollButton(part, "Pyong3")
+	end,
+	["Re2"] = function(part) -- red button on stage 1
+		setupReturnButton(part, "Pyong2")
+	end,
+	["Re3"] = function(part) -- cyan button past the pit
+		setupReturnButton(part, "Pyong3")
 	end,
 }
 

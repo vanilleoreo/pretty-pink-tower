@@ -7,6 +7,7 @@ Roblox game. Scripts are edited in VS Code and live-synced into Roblox Studio wi
 | Folder | Becomes in Studio |
 | --- | --- |
 | `src/server/` | `ServerScriptService` |
+| `src/client/` | `StarterPlayer.StarterPlayerScripts` |
 | `src/character/` | `StarterPlayer.StarterCharacterScripts` |
 | `pretty-pink-tower.rbxl` | Backup of the whole place (map, models, free-model scripts) |
 
