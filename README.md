@@ -11,7 +11,7 @@ Roblox game **Cherry Blossom Tower**. Scripts are edited in VS Code and live-syn
 | `src/shared/` | `ReplicatedStorage.Shared` (used by both server and client, e.g. gamepass IDs) |
 | `src/character/` | `StarterPlayer.StarterCharacterScripts` |
 | `pretty-pink-tower.rbxl` | Backup of the whole place (map, models, free-model scripts) |
-| `art/` | Game icon (`icon.png`, 512×512) and thumbnail (`thumbnail.png`, 1920×1080) to upload on the Creator Hub. Redraw with `python3 art/make_art.py && art/render.sh` |
+| `art/` | Game icon (`icon.png`, 512×512) and thumbnails (`thumbnail*.png`, 1920×1080: main, climb, sofa, ASMR) to upload on the Creator Hub. Redraw with `python3 art/make_art.py && art/render.sh` |
 
 File names decide the script type:
 

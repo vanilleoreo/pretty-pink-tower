@@ -426,7 +426,311 @@ def icon():
     return page(s, s, "\n".join(body))
 
 
+FONT = "Fredoka, 'Arial Rounded MT Bold', sans-serif"
+
+
+def tag(x, y, w, text, rotate=-4, size=40):
+    """A pink pill with white writing, like the one under the main title."""
+    return (
+        f'<g transform="rotate({rotate} {x + 10} {y + 40})"><rect x="{x}" y="{y}" width="{w}" height="76" rx="38" '
+        f'fill="#ff4f9a" stroke="#ffffff" stroke-width="5"/>'
+        f'<text x="{x + w / 2}" y="{y + 52}" text-anchor="middle" font-family="{FONT}" font-weight="700" '
+        f'font-size="{size}" fill="#ffffff" letter-spacing="2">{text}</text></g>'
+    )
+
+
+def kill_strip(x, top_y, w, h=24):
+    """A red danger strip sitting on top of a platform (top_y = the platform's top)."""
+    stripes = "".join(
+        f'<line x1="{x + 12 + i * 24:.1f}" y1="{top_y - 5:.1f}" x2="{x + 24 + i * 24:.1f}" y2="{top_y - h + 5:.1f}" '
+        f'stroke="#ffffff" stroke-width="5" stroke-linecap="round" opacity="0.85"/>'
+        for i in range(max(int((w - 24) / 24), 1))
+    )
+    return (
+        f'<rect x="{x}" y="{top_y - h}" width="{w}" height="{h}" rx="7" fill="#ff4d5e" stroke="#c9213a" stroke-width="4"/>'
+        + stripes
+    )
+
+
+def ghost_platform(x, y, w, color, h=26):
+    """A disappearing platform, mid-fade."""
+    return (
+        f'<rect x="{x}" y="{y}" width="{w}" height="{h}" rx="{h / 2}" fill="{color}" opacity="0.55" '
+        f'stroke="#ffffff" stroke-width="4" stroke-dasharray="14 10"/>'
+    )
+
+
+def note(x, y, s=1.0, color="#ff6fb0"):
+    """A little music note."""
+    return (
+        f'<g fill="{color}" stroke="{color}"><ellipse cx="{x}" cy="{y}" rx="{16 * s:.1f}" ry="{12 * s:.1f}" '
+        f'transform="rotate(-20 {x} {y})"/>'
+        f'<line x1="{x + 14 * s:.1f}" y1="{y - 4 * s:.1f}" x2="{x + 14 * s:.1f}" y2="{y - 62 * s:.1f}" stroke-width="{6 * s:.1f}" stroke-linecap="round"/>'
+        f'<path d="M{x + 14 * s:.1f},{y - 62 * s:.1f} q{22 * s:.1f},{8 * s:.1f} {24 * s:.1f},{30 * s:.1f}" fill="none" stroke-width="{6 * s:.1f}" stroke-linecap="round"/></g>'
+    )
+
+
+def height_bar(x, top, bottom, at):
+    """The rainbow height bar from the game, with your face on it (at = 0 bottom .. 1 top)."""
+    stops = "".join(
+        f'<stop offset="{i / (len(RAINBOW) - 1):.2f}" stop-color="{c}"/>' for i, c in enumerate(RAINBOW)
+    )
+    y = bottom - at * (bottom - top)
+    flag = "".join(
+        f'<rect x="{x + 8 + col * 14}" y="{top - 70 + row * 14}" width="14" height="14" fill="{"#333" if (row + col) % 2 == 0 else "#fff"}"/>'
+        for row in range(3) for col in range(4)
+    )
+    return (
+        f'<defs><linearGradient id="heightbar" x1="0" y1="1" x2="0" y2="0">{stops}</linearGradient></defs>'
+        f'<rect x="{x - 13}" y="{top}" width="26" height="{bottom - top}" rx="13" fill="url(#heightbar)" stroke="#ffffff" stroke-width="5"/>'
+        f'<line x1="{x + 6}" y1="{top - 8}" x2="{x + 6}" y2="{top - 76}" stroke="#5b2a4a" stroke-width="5" stroke-linecap="round"/>'
+        f'<g stroke="#5b2a4a" stroke-width="2">{flag}</g>'
+        f'<rect x="{x - 96}" y="{y - 34}" width="68" height="68" rx="16" fill="#ffd9b3" stroke="#ff4f9a" stroke-width="6"/>'
+        f'<circle cx="{x - 72}" cy="{y - 8}" r="5" fill="#5b2a4a"/><circle cx="{x - 52}" cy="{y - 8}" r="5" fill="#5b2a4a"/>'
+        f'<path d="M{x - 74},{y + 10} Q{x - 62},{y + 20} {x - 50},{y + 10}" stroke="#5b2a4a" stroke-width="4" fill="none" stroke-linecap="round"/>'
+        f'<rect x="{x - 196}" y="{y - 22}" width="88" height="44" rx="22" fill="#ff4f9a" stroke="#ffffff" stroke-width="4"/>'
+        f'<text x="{x - 152}" y="{y + 11}" text-anchor="middle" font-family="{FONT}" font-weight="700" font-size="28" fill="#ffffff">{round(at * 100)}%</text>'
+    )
+
+
+def sofa(cx, base_y, s=1.0):
+    """A big comfy pink sofa (base_y = the floor)."""
+    w = 460 * s
+    left = cx - w / 2
+    line = f'stroke="#d63a84" stroke-width="{6 * s:.1f}"'
+    parts = [
+        f'<rect x="{left + 50 * s:.1f}" y="{base_y - 22 * s:.1f}" width="{22 * s:.1f}" height="{22 * s:.1f}" rx="4" fill="#9a6250"/>',
+        f'<rect x="{left + w - 72 * s:.1f}" y="{base_y - 22 * s:.1f}" width="{22 * s:.1f}" height="{22 * s:.1f}" rx="4" fill="#9a6250"/>',
+        f'<rect x="{left + 40 * s:.1f}" y="{base_y - 250 * s:.1f}" width="{w - 80 * s:.1f}" height="{160 * s:.1f}" rx="{44 * s:.1f}" fill="#ff7eb6" {line}/>',
+        f'<rect x="{left + 24 * s:.1f}" y="{base_y - 130 * s:.1f}" width="{w - 48 * s:.1f}" height="{110 * s:.1f}" rx="{30 * s:.1f}" fill="#ff8fc0" {line}/>',
+    ]
+    for i in range(2):  # seat cushions
+        x = left + 70 * s + i * (w - 140 * s) / 2
+        parts.append(
+            f'<rect x="{x + 4 * s:.1f}" y="{base_y - 150 * s:.1f}" width="{(w - 140 * s) / 2 - 8 * s:.1f}" height="{52 * s:.1f}" '
+            f'rx="{22 * s:.1f}" fill="#ffb3d6" {line}/>'
+        )
+    for x in (left, left + w - 90 * s):  # arm rests
+        parts.append(
+            f'<rect x="{x:.1f}" y="{base_y - 185 * s:.1f}" width="{90 * s:.1f}" height="{165 * s:.1f}" rx="{42 * s:.1f}" fill="#ff6fb0" {line}/>'
+        )
+    parts.append(heart(cx + 95 * s, base_y - 225 * s, 78 * s, fill="#fff0f7"))
+    parts.append(heart(cx - 95 * s, base_y - 222 * s, 70 * s, fill="#ffe066"))
+    parts.append(
+        f'<path d="M{left + 70 * s:.1f},{base_y - 225 * s:.1f} Q{cx:.1f},{base_y - 240 * s:.1f} {left + w - 70 * s:.1f},{base_y - 225 * s:.1f}" '
+        f'stroke="#ffffff" stroke-width="{7 * s:.1f}" fill="none" stroke-linecap="round" opacity="0.5"/>'
+    )
+    return f'<g filter="url(#soft)">{"".join(parts)}</g>'
+
+
+def finish_pavilion(x0, x1, floor_y, roof_y):
+    """The white finish platform with pillars, a roof and a FINISH banner."""
+    edge = 'stroke="#e7b6cf" stroke-width="6"'
+    checks = "".join(
+        f'<rect x="{x0 - 30 + i * 24}" y="{roof_y + 6}" width="24" height="16" fill="{"#5b2a4a" if i % 2 == 0 else "#ffffff"}"/>'
+        for i in range(int((x1 - x0 + 60) / 24))
+    )
+    mid = (x0 + x1) / 2
+    return (
+        '<g filter="url(#soft)">'
+        f'<rect x="{x0 - 40}" y="{floor_y}" width="{x1 - x0 + 80}" height="40" rx="14" fill="#ffffff" {edge}/>'
+        f'<rect x="{x0}" y="{roof_y}" width="34" height="{floor_y - roof_y}" fill="#ffffff" {edge}/>'
+        f'<rect x="{x1 - 34}" y="{roof_y}" width="34" height="{floor_y - roof_y}" fill="#ffffff" {edge}/>'
+        f'<rect x="{x0 - 50}" y="{roof_y - 40}" width="{x1 - x0 + 100}" height="46" rx="14" fill="#ffffff" {edge}/>'
+        f'{checks}'
+        f'<rect x="{mid - 150}" y="{roof_y - 112}" width="300" height="74" rx="20" fill="#ff4f9a" stroke="#ffffff" stroke-width="5"/>'
+        f'<text x="{mid}" y="{roof_y - 58}" text-anchor="middle" font-family="{FONT}" font-weight="700" font-size="48" '
+        f'fill="#ffffff" letter-spacing="3">FINISH</text>'
+        '</g>'
+    )
+
+
+def keyboard(x0, y0, key, gap):
+    """A giant pastel keyboard, three rows of keys."""
+    colors = [("#ffb3d1", "#e98bb2"), ("#c9b6ff", "#a28be6"), ("#a8ecc0", "#79cf9a"), ("#ffe48a", "#e6c25a"), ("#a9d8ff", "#7cb8ea")]
+    rows = ["QWERTYUIOP", "ASDFGHJKL", "ZXCVBNM"]
+    parts = []
+    for r, row in enumerate(rows):
+        for i, letter in enumerate(row):
+            fill, shade = colors[(i + r * 2) % len(colors)]
+            kx, ky = x0 + r * key * 0.45 + i * (key + gap), y0 + r * (key + gap)
+            parts.append(f'<rect x="{kx:.1f}" y="{ky + 14:.1f}" width="{key}" height="{key}" rx="22" fill="{shade}"/>')
+            parts.append(f'<rect x="{kx:.1f}" y="{ky:.1f}" width="{key}" height="{key}" rx="22" fill="{fill}" stroke="#ffffff" stroke-width="5"/>')
+            parts.append(
+                f'<text x="{kx + key / 2:.1f}" y="{ky + key * 0.66:.1f}" text-anchor="middle" font-family="{FONT}" '
+                f'font-weight="700" font-size="{key * 0.46:.0f}" fill="#ffffff" opacity="0.95">{letter}</text>'
+            )
+    return f'<g filter="url(#soft)">{"".join(parts)}</g>'
+
+
+def butter(cx, base_y, s=1.0):
+    """A happy block of butter on a plate."""
+    line = f'stroke="#d9a400" stroke-width="{5 * s:.1f}" stroke-linejoin="round"'
+    l, r, top, front = cx - 120 * s, cx + 100 * s, base_y - 150 * s, base_y - 110 * s
+    return (
+        '<g filter="url(#soft)">'
+        f'<ellipse cx="{cx:.1f}" cy="{base_y - 10 * s:.1f}" rx="{190 * s:.1f}" ry="{38 * s:.1f}" fill="#ffffff" stroke="#e7b6cf" stroke-width="{6 * s:.1f}"/>'
+        f'<path d="M{r:.1f},{front:.1f} L{r + 40 * s:.1f},{top:.1f} L{r + 40 * s:.1f},{base_y - 62 * s:.1f} L{r:.1f},{base_y - 22 * s:.1f}Z" fill="#f2c200" {line}/>'
+        f'<path d="M{l:.1f},{front:.1f} L{l + 40 * s:.1f},{top:.1f} L{r + 40 * s:.1f},{top:.1f} L{r:.1f},{front:.1f}Z" fill="#fff09a" {line}/>'
+        f'<rect x="{l:.1f}" y="{front:.1f}" width="{r - l:.1f}" height="{88 * s:.1f}" rx="{10 * s:.1f}" fill="#ffd84d" {line}/>'
+        f'<circle cx="{cx - 40 * s:.1f}" cy="{front + 40 * s:.1f}" r="{7 * s:.1f}" fill="#5b2a4a"/>'
+        f'<circle cx="{cx + 20 * s:.1f}" cy="{front + 40 * s:.1f}" r="{7 * s:.1f}" fill="#5b2a4a"/>'
+        f'<path d="M{cx - 24 * s:.1f},{front + 56 * s:.1f} Q{cx - 10 * s:.1f},{front + 68 * s:.1f} {cx + 4 * s:.1f},{front + 56 * s:.1f}" stroke="#5b2a4a" stroke-width="{5 * s:.1f}" fill="none" stroke-linecap="round"/>'
+        f'<ellipse cx="{cx - 66 * s:.1f}" cy="{front + 56 * s:.1f}" rx="{14 * s:.1f}" ry="{8 * s:.1f}" fill="#ff9cc6" opacity="0.8"/>'
+        f'<ellipse cx="{cx + 46 * s:.1f}" cy="{front + 56 * s:.1f}" rx="{14 * s:.1f}" ry="{8 * s:.1f}" fill="#ff9cc6" opacity="0.8"/>'
+        '</g>'
+    )
+
+
+def cocoa(cx, base_y, s=1.0):
+    """A pink mug of hot cocoa with marshmallows and steam."""
+    line = f'stroke="#d63a84" stroke-width="{6 * s:.1f}"'
+    top = base_y - 210 * s
+    steam = "".join(
+        f'<path d="M{cx + dx * s:.1f},{top - 30 * s:.1f} q{-22 * s:.1f},{-30 * s:.1f} 0,{-60 * s:.1f} q{22 * s:.1f},{-30 * s:.1f} 0,{-60 * s:.1f}" '
+        f'stroke="#ffffff" stroke-width="{9 * s:.1f}" fill="none" stroke-linecap="round" opacity="0.75"/>'
+        for dx in (-45, 0, 45)
+    )
+    mallows = "".join(
+        f'<rect x="{cx + dx * s:.1f}" y="{top - 22 * s:.1f}" width="{34 * s:.1f}" height="{28 * s:.1f}" rx="{8 * s:.1f}" '
+        f'fill="#ffffff" stroke="#f0c4d8" stroke-width="{3 * s:.1f}" transform="rotate({rot} {cx + dx * s:.1f} {top:.1f})"/>'
+        for dx, rot in ((-70, -12), (-20, 8), (30, -6))
+    )
+    return (
+        f'{steam}<g filter="url(#soft)">'
+        f'<circle cx="{cx + 100 * s:.1f}" cy="{base_y - 110 * s:.1f}" r="{50 * s:.1f}" fill="none" stroke="#d63a84" stroke-width="{34 * s:.1f}"/>'
+        f'<circle cx="{cx + 100 * s:.1f}" cy="{base_y - 110 * s:.1f}" r="{50 * s:.1f}" fill="none" stroke="#ff8fc0" stroke-width="{22 * s:.1f}"/>'
+        f'<rect x="{cx - 100 * s:.1f}" y="{top:.1f}" width="{200 * s:.1f}" height="{210 * s:.1f}" rx="{30 * s:.1f}" fill="#ff8fc0" {line}/>'
+        f'<ellipse cx="{cx:.1f}" cy="{top + 4 * s:.1f}" rx="{88 * s:.1f}" ry="{20 * s:.1f}" fill="#8d5a44"/>'
+        f'{mallows}'
+        f'{heart(cx, top + 70 * s, 70 * s, fill="#ffffff")}'
+        '</g>'
+    )
+
+
+def squishy(cx, cy, s=1.0):
+    """A squishy stress ball with a cute face."""
+    return (
+        '<g filter="url(#soft)">'
+        f'<ellipse cx="{cx:.1f}" cy="{cy:.1f}" rx="{100 * s:.1f}" ry="{84 * s:.1f}" fill="#b9a7ff" stroke="#8f7ae0" stroke-width="{6 * s:.1f}"/>'
+        f'<ellipse cx="{cx - 38 * s:.1f}" cy="{cy - 40 * s:.1f}" rx="{26 * s:.1f}" ry="{14 * s:.1f}" fill="#ffffff" opacity="0.5" transform="rotate(-25 {cx - 38 * s:.1f} {cy - 40 * s:.1f})"/>'
+        f'<circle cx="{cx - 28 * s:.1f}" cy="{cy + 4 * s:.1f}" r="{7 * s:.1f}" fill="#5b2a4a"/>'
+        f'<circle cx="{cx + 28 * s:.1f}" cy="{cy + 4 * s:.1f}" r="{7 * s:.1f}" fill="#5b2a4a"/>'
+        f'<path d="M{cx - 12 * s:.1f},{cy + 22 * s:.1f} Q{cx:.1f},{cy + 32 * s:.1f} {cx + 12 * s:.1f},{cy + 22 * s:.1f}" stroke="#5b2a4a" stroke-width="{5 * s:.1f}" fill="none" stroke-linecap="round"/>'
+        '</g>'
+    )
+
+
+def thumbnail_climb():
+    """Thumbnail 2: climbing the tower obby."""
+    w, h = 1920, 1080
+    rng = random.Random(21)
+    body = [f'<rect width="{w}" height="{h}" fill="url(#sky)"/>', '<circle cx="1180" cy="420" r="520" fill="url(#glow)"/>']
+    for cx, cy, s, o in [(260, 960, 1.4, 1), (1500, 990, 1.3, 1), (880, 140, 0.7, 0.8), (1580, 90, 0.6, 0.7)]:
+        body.append(cloud(cx, cy, s, o))
+    # a big tower going up past the top of the picture
+    body.append(tower(1120, 1160, 9, 150, 400, 330, line=7, flag=False))
+    # obby platforms climbing up beside it, with traps
+    steps = [(1380, 930, 190, 0), (1560, 800, 160, 1), (1380, 670, 160, 2), (1570, 540, 150, 3), (1390, 410, 150, 0), (1570, 280, 140, 2)]
+    for x, y, pw, c in steps:
+        if y == 410:
+            body.append(ghost_platform(x, y, pw, PLATFORMS[c]))
+        else:
+            body.append(platform(x, y, pw, PLATFORMS[c]))
+    body.append(kill_strip(1440, 670, 50))
+    body.append(kill_strip(1610, 540, 48))
+    body.append(character(1655, 770, s=1.0))
+    # on the left, under the title
+    body.append(platform(170, 900, 240, PLATFORMS[1]))
+    body.append(platform(520, 820, 200, PLATFORMS[2]))
+    body.append(kill_strip(580, 820, 60))
+    body.append(platform(730, 720, 160, PLATFORMS[3]))
+    body.append(height_bar(1840, 170, 930, 0.62))
+    for x, y, r in [(1010, 150, 16), (1320, 330, 14), (700, 620, 18), (1760, 1000, 14), (120, 720, 12)]:
+        body.append(sparkle(x, y, r))
+    body.append(corner_branch(((-30, 40), (170, 0), (380, 85)), 0.9, rng))
+    body.append(falling_petals(rng, 45, w, h, keep_out=[(60, 120, 1000, 640), (900, 0, 1360, 1080)]))
+    body.append(title(90, 300, "Climb the", 150, rotate=-4))
+    body.append(title(110, 520, "Tower!", 230, rotate=-4))
+    body.append(tag(130, 590, 620, "8 LEVELS • TROLL TRAPS"))
+    return page(w, h, "\n".join(body))
+
+
+def thumbnail_sofa():
+    """Thumbnail 3: the final stage, reaching the sofa in the clouds."""
+    w, h = 1920, 1080
+    rng = random.Random(33)
+    sunset = (
+        '<defs><linearGradient id="sunset" x1="0" y1="0" x2="0" y2="1">'
+        '<stop offset="0" stop-color="#b89bff"/><stop offset="0.5" stop-color="#ff9cc9"/>'
+        '<stop offset="1" stop-color="#ffd6b8"/></linearGradient></defs>'
+    )
+    body = [sunset, f'<rect width="{w}" height="{h}" fill="url(#sunset)"/>', '<circle cx="1480" cy="470" r="560" fill="url(#glow)"/>']
+    for cx, cy, s, o in [(300, 170, 0.8, 0.8), (930, 120, 0.6, 0.7), (1840, 220, 0.7, 0.8)]:
+        body.append(cloud(cx, cy, s, o))
+    # the rainbow bridge with red strips, then the black blocks, then the finish
+    x, y = -40, 800
+    for i in range(5):
+        body.append(platform(x, y, 112, RAINBOW[i % len(RAINBOW)]))
+        body.append(kill_strip(x + 38, y, 36))
+        x += 130
+    for i in range(4):
+        body.append(platform(x + 20 + i * 120, y, 70, "#4a3a4f"))
+    body.append(finish_pavilion(1170, 1830, 780, 300))
+    body.append(sofa(1500, 780, s=0.95))
+    for lx in (1280, 1720):
+        body.append(lantern(lx, 306, 64))
+    body.append(character(1010, 700, s=1.0))
+    # a sea of clouds below
+    for i in range(13):
+        body.append(cloud(60 + i * 160, 1010 + (i % 2) * 26, 1.6))
+    for i in range(7):
+        body.append(cloud(140 + i * 300, 900 + (i % 2) * 30, 0.9, 0.9))
+    for x, y, r in [(820, 520, 18), (1100, 440, 14), (640, 690, 12), (1880, 600, 16)]:
+        body.append(sparkle(x, y, r))
+    body.append(corner_branch(((1955, 30), (1770, 10), (1590, 120)), 1.0, rng))
+    body.append(falling_petals(rng, 50, w, h, keep_out=[(60, 100, 1000, 690), (1140, 180, 1870, 830)]))
+    body.append(title(100, 290, "Reach the", 150, rotate=-4))
+    body.append(title(120, 520, "Sofa!", 240, rotate=-4))
+    body.append(tag(140, 590, 430, "FINAL STAGE"))
+    return page(w, h, "\n".join(body))
+
+
+def thumbnail_asmr():
+    """Thumbnail 4: the ASMR side of the game."""
+    w, h = 1920, 1080
+    rng = random.Random(44)
+    body = [f'<rect width="{w}" height="{h}" fill="url(#sky)"/>', '<circle cx="1350" cy="430" r="520" fill="url(#glow)"/>']
+    for cx, cy, s, o in [(1000, 120, 0.7, 0.8), (1820, 300, 0.6, 0.7)]:
+        body.append(cloud(cx, cy, s, o))
+    body.append(rainbow(1350, 760, 520, 34, opacity=0.6))
+    body.append(squishy(1040, 600, s=0.9))
+    body.append(butter(1360, 640, s=1.05))
+    body.append(cocoa(1710, 640, s=1.0))
+    for x, y, s, c in [(930, 330, 1.0, "#ff6fb0"), (1180, 250, 0.8, "#b197fc"), (1560, 230, 0.9, "#ff6fb0"), (1860, 470, 0.8, "#74c0fc")]:
+        body.append(note(x, y, s, c))
+    body.append(keyboard(-60, 700, 150, 22))
+    for x, y, r in [(840, 520, 16), (1250, 420, 12), (1860, 640, 14), (620, 640, 14)]:
+        body.append(sparkle(x, y, r))
+    body.append(corner_branch(((-30, 40), (170, 0), (380, 85)), 0.9, rng))
+    body.append(corner_branch(((1955, 30), (1770, 10), (1590, 120)), 1.0, rng, lanterns=(0.42,)))
+    body.append(falling_petals(rng, 40, w, 700, keep_out=[(60, 120, 900, 640), (900, 300, 1880, 700)]))
+    body.append(title(90, 330, "ASMR", 240, rotate=-4))
+    body.append(title(110, 520, "&amp; Chill", 170, rotate=-4))
+    body.append(tag(130, 570, 660, "KEYBOARD • BUTTER • COCOA", size=36))
+    return page(w, h, "\n".join(body))
+
+
+THUMBNAILS = {
+    "thumbnail.html": thumbnail,
+    "thumbnail-climb.html": thumbnail_climb,
+    "thumbnail-sofa.html": thumbnail_sofa,
+    "thumbnail-asmr.html": thumbnail_asmr,
+}
+
+
 if __name__ == "__main__":
-    (HERE / "thumbnail.html").write_text(thumbnail())
+    for name, draw in THUMBNAILS.items():
+        (HERE / name).write_text(draw())
     (HERE / "icon.html").write_text(icon())
-    print("wrote", HERE / "thumbnail.html", "and", HERE / "icon.html")
+    print("wrote", ", ".join(THUMBNAILS), "and icon.html")

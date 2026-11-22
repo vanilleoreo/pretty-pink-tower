@@ -12,4 +12,6 @@ render() {
 }
 
 render icon.html 512,512 icon.png
-render thumbnail.html 1920,1080 thumbnail.png
+for page in thumbnail*.html; do
+	render "$page" 1920,1080 "${page%.html}.png"
+done
