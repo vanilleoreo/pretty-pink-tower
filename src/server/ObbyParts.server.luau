@@ -7,6 +7,12 @@ local obby = workspace:WaitForChild("💥 Troll Tower Obby Parkour Fun Hard Easy
 -- Settings you can tweak
 local DAMAGE_COOLDOWN = 0.2 -- seconds between hits from kill parts, so KILLPART-5 doesn't melt you instantly
 local CONVEYOR_SPEED = 25 -- used if an AutoSpeed part has no Speed value inside it
+local DISAPPEAR_DELAY = 0.4 -- seconds after you step on a disappearing part before it starts to fade
+
+-- The final stage to the sofa: the black disappearing blocks after the door room
+local FINAL_BLOCK_WIDTH = 6 -- studs across (they used to be tiny 1 x 1 stud blocks)
+local FINAL_BLOCK_DEPTH = 4 -- studs along the path; the blocks are 7 studs apart, so this leaves 3-stud gaps
+local FINAL_BLOCK_DELAY = 1.2 -- more time on them before they fade
 
 local function getCharacter(hit)
 	local character = hit.Parent
@@ -30,7 +36,7 @@ local function setupDisappearing(part)
 		end
 		fading[part] = true
 
-		task.wait(0.4)
+		task.wait(part:GetAttribute("DisappearDelay") or DISAPPEAR_DELAY)
 		TweenService:Create(part, TweenInfo.new(0.3), { Transparency = 1 }):Play()
 		task.wait(0.3)
 		part.CanCollide = false
@@ -197,6 +203,31 @@ local setups = {
 		setupReturnButton(part, "Pyong3")
 	end,
 }
+
+-- Make the final stage to the sofa easier: the 8 black blocks between the door room and the
+-- sofa platform become proper little platforms (gaps of 3 studs instead of 6), and wait longer
+-- before they vanish. They're the only tiny disappearing parts up at the top.
+local finalBlocks = 0
+for _, part in obby:GetDescendants() do
+	if
+		part:IsA("BasePart")
+		and part.Name == "Disappearing Part"
+		and part.Size.X <= 1.5
+		and part.Size.Z <= 1.5
+		and part.Position.Y > 390
+	then
+		-- The path runs along Z. These blocks are turned sideways, so check which way the part's own
+		-- X side points before choosing which side gets the width and which the depth.
+		-- (A part grows around its middle, so the top stays at the same height.)
+		local sideways = math.abs(part.CFrame.RightVector.Z) > math.abs(part.CFrame.RightVector.X)
+		part.Size = if sideways
+			then Vector3.new(FINAL_BLOCK_DEPTH, part.Size.Y, FINAL_BLOCK_WIDTH)
+			else Vector3.new(FINAL_BLOCK_WIDTH, part.Size.Y, FINAL_BLOCK_DEPTH)
+		part:SetAttribute("DisappearDelay", FINAL_BLOCK_DELAY)
+		finalBlocks += 1
+	end
+end
+print("[ObbyParts] Made the " .. finalBlocks .. " final blocks to the sofa bigger")
 
 local count = 0
 for _, part in obby:GetDescendants() do
