@@ -13,6 +13,7 @@ local COLORS = {
 	Pink = Color3.fromRGB(255, 105, 180),
 	Text = Color3.fromRGB(110, 45, 85),
 	Muted = Color3.fromRGB(165, 115, 145),
+	Donated = Color3.fromRGB(110, 195, 135),
 	White = Color3.new(1, 1, 1),
 }
 local FONT = Enum.Font.FredokaOne
@@ -71,7 +72,7 @@ local panel = make("Frame", {
 }, {
 	corner(18),
 	make("UIStroke", { Color = COLORS.Pink, Thickness = 3 }),
-	make("UISizeConstraint", { MaxSize = Vector2.new(420, 340) }),
+	make("UISizeConstraint", { MaxSize = Vector2.new(420, 380) }),
 	make("TextLabel", {
 		Name = "Title",
 		Position = UDim2.fromOffset(18, 10),
@@ -148,10 +149,23 @@ message.Parent = panel
 
 -- One button per amount ------------------------------------------------------
 
+local passButtons: { [number]: TextButton } = {} -- gamepass ID -> its button
+local boughtNow: { [number]: boolean } = {} -- passes bought this session (Roblox can take a moment to notice)
+
+-- A gamepass can only be bought once, so after that its button says thanks instead
+local function markDonated(button: TextButton)
+	button.Text = "Donated 💖"
+	button.BackgroundColor3 = COLORS.Donated
+	button.AutoButtonColor = false
+	button:SetAttribute("Donated", true)
+end
+
 local function addAmount(value: Instance)
 	if not value:IsA("IntValue") then
 		return
 	end
+	local id = value.Value
+	local isPass = value:GetAttribute("Kind") == "pass"
 	local button = make("TextButton", {
 		Name = value.Name,
 		LayoutOrder = value:GetAttribute("Order") or value.Value,
@@ -162,10 +176,41 @@ local function addAmount(value: Instance)
 		TextColor3 = COLORS.White,
 	}, { corner(14) })
 	button.Activated:Connect(function()
-		MarketplaceService:PromptProductPurchase(player, value.Value)
+		if button:GetAttribute("Donated") then
+			return
+		elseif isPass then
+			MarketplaceService:PromptGamePassPurchase(player, id)
+		else
+			MarketplaceService:PromptProductPurchase(player, id)
+		end
 	end)
 	button.Parent = grid
+
+	if isPass then
+		passButtons[id] = button
+		if boughtNow[id] then
+			markDonated(button)
+		else
+			task.spawn(function()
+				local ok, owns = pcall(MarketplaceService.UserOwnsGamePassAsync, MarketplaceService, player.UserId, id)
+				if ok and owns then
+					markDonated(button)
+				end
+			end)
+		end
+	end
 end
+
+MarketplaceService.PromptGamePassPurchaseFinished:Connect(function(who, passId, purchased)
+	if who ~= player or not purchased then
+		return
+	end
+	boughtNow[passId] = true
+	local button = passButtons[passId]
+	if button then
+		markDonated(button)
+	end
+end)
 
 for _, value in options:GetChildren() do
 	addAmount(value)

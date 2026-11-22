@@ -3,9 +3,10 @@
 -- Builds a pink donation stand next to the item givers in the lobby. Walking up to it (or
 -- pressing the Donate button on the screen) opens the donate menu (Donate.client.luau).
 --
--- The donation amounts come from the game's Developer Products on the Creator Hub: every
--- developer product with "Donate" in its name shows up as a button, cheapest first.
--- So to add, change or remove an amount, just change the products on the Creator Hub.
+-- The donation amounts are:
+--   - the gamepasses listed in src/shared/DonationPasses.luau (each can be bought once), and
+--   - any Developer Products with "Donate" in their name (these can be bought again and again).
+-- They show up as buttons, cheapest first, with the prices set on the Creator Hub.
 --
 -- Want the stand somewhere else? In Studio, put a Part called "DonationStandSpot" in Workspace
 -- where it should go (its front = the way the stand faces). The part itself is hidden in game.
@@ -15,7 +16,9 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
-local NAME_MATCH = "donat" -- products whose name contains this (any capitals) are donations
+local DonationPasses = require(ReplicatedStorage:WaitForChild("Shared"):WaitForChild("DonationPasses"))
+
+local NAME_MATCH = "donat" -- developer products whose name contains this (any capitals) are donations
 local DEFAULT_SPOT = CFrame.lookAt(Vector3.new(-108, -0.8, 146), Vector3.new(-108, -0.8, 140)) -- left of the givers, facing the spawn
 
 local PINK = Color3.fromRGB(255, 105, 180)
@@ -187,10 +190,27 @@ task.spawn(function()
 	end
 end)
 
--- Donation amounts from the Creator Hub ----------------------------------------------
+-- Donation amounts --------------------------------------------------------------
 
-local productsById: { [number]: number } = {} -- product ID -> price
+local productsById: { [number]: number } = {} -- developer product ID -> price
+local passesById: { [number]: number } = {} -- gamepass ID -> price
 local loaded = false
+
+type Option = { kind: string, id: number, price: number } -- kind = "pass" or "product"
+
+-- The gamepasses listed in src/shared/DonationPasses.luau
+local function loadPasses(found: { Option })
+	for _, id in DonationPasses do
+		local ok, info = pcall(MarketplaceService.GetProductInfoAsync, MarketplaceService, id, Enum.InfoType.GamePass)
+		if not ok then
+			warn("[Donations] Couldn't look up gamepass", id, info)
+		elseif not info.IsForSale or not info.PriceInRobux then
+			warn(`[Donations] Gamepass {id} ("{info.Name}") isn't for sale: turn on "Item for sale" on the Creator Hub`)
+		else
+			table.insert(found, { kind = "pass", id = id, price = info.PriceInRobux })
+		end
+	end
+end
 
 -- The product list doesn't always spell its fields the same way, so try each spelling
 local function field(entry: { [string]: any }, ...: string): any
@@ -202,8 +222,8 @@ local function field(entry: { [string]: any }, ...: string): any
 	return nil
 end
 
-local function loadProducts()
-	local found = {}
+-- Any developer products with "Donate" in their name (these can be bought again and again)
+local function loadProducts(found: { Option })
 	local ok, err = pcall(function()
 		local pages = MarketplaceService:GetDeveloperProductsAsync()
 		while true do
@@ -220,7 +240,7 @@ local function loadProducts()
 					end
 				end
 				if id and price and string.find(string.lower(tostring(name or "")), NAME_MATCH, 1, true) then
-					table.insert(found, { id = id, price = price })
+					table.insert(found, { kind = "product", id = id, price = price })
 				end
 			end
 			if pages.IsFinished then
@@ -229,41 +249,51 @@ local function loadProducts()
 			pages:AdvanceToNextPageAsync()
 		end
 	end)
-
 	if not ok then
 		warn("[Donations] Couldn't load the developer products:", err)
-		donations:SetAttribute("Status", "error")
-		return
 	end
+end
+
+local function loadOptions()
+	local found: { Option } = {}
+	loadPasses(found)
+	loadProducts(found)
 
 	table.sort(found, function(a, b)
-		return a.price < b.price
+		if a.price ~= b.price then
+			return a.price < b.price
+		end
+		return a.id < b.id
 	end)
-	for order, product in found do
-		productsById[product.id] = product.price
+
+	local prices = {}
+	for order, option in found do
+		if option.kind == "pass" then
+			passesById[option.id] = option.price
+		else
+			productsById[option.id] = option.price
+		end
 		local value = Instance.new("IntValue")
-		value.Name = "R$ " .. product.price
-		value.Value = product.id
-		value:SetAttribute("Price", product.price)
+		value.Name = "R$ " .. option.price
+		value.Value = option.id
+		value:SetAttribute("Kind", option.kind)
+		value:SetAttribute("Price", option.price)
 		value:SetAttribute("Order", order)
 		value.Parent = options
+		table.insert(prices, "R$ " .. option.price)
 	end
 
 	if #found == 0 then
-		warn('[Donations] No donation amounts yet. On the Creator Hub, make Developer Products named like "Donate 10".')
+		warn("[Donations] No donation amounts are for sale yet, so the donate menu says \"coming soon\".")
 		donations:SetAttribute("Status", "none")
 	else
-		local prices = {}
-		for _, product in found do
-			table.insert(prices, "R$ " .. product.price)
-		end
 		print("[Donations] Donation amounts:", table.concat(prices, ", "))
 		donations:SetAttribute("Status", "ready")
 	end
 end
 
 task.spawn(function()
-	loadProducts()
+	loadOptions()
 	loaded = true
 end)
 
@@ -318,3 +348,11 @@ MarketplaceService.ProcessReceipt = function(receipt)
 	task.spawn(recordDonation, receipt.PlayerId, receipt.CurrencySpent or price)
 	return Enum.ProductPurchaseDecision.PurchaseGranted
 end
+
+-- Gamepass donations (Roblox tells the server when someone buys one)
+MarketplaceService.PromptGamePassPurchaseFinished:Connect(function(buyer, passId, purchased)
+	local price = passesById[passId]
+	if purchased and price then
+		task.spawn(recordDonation, buyer.UserId, price)
+	end
+end)
