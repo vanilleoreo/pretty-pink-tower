@@ -1,11 +1,13 @@
 -- Donate button (under the Shop button) and the donate menu.
 -- The menu also opens when you walk up to the donation stand in the lobby.
--- When anyone donates, everybody sees a thank-you message at the top of the screen.
+-- When you donate, confetti rains down your screen and a big "thank you" pops up.
+-- When someone else donates, you see a small thank-you message at the top of the screen.
 -- (The amounts and the stand come from the Donations server script.)
 local MarketplaceService = game:GetService("MarketplaceService")
 local Players = game:GetService("Players")
 local ProximityPromptService = game:GetService("ProximityPromptService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 
 local COLORS = {
@@ -257,7 +259,7 @@ ProximityPromptService.PromptTriggered:Connect(function(prompt, who)
 	end
 end)
 
--- Thank-you message for everyone ---------------------------------------------------
+-- Small thank-you message when someone else donates ------------------------------------
 
 local banner = make("TextLabel", {
 	Name = "Thanks",
@@ -284,24 +286,177 @@ local banner = make("TextLabel", {
 })
 banner.Parent = gui
 
-local shownAt = 0
+local bannerShownAt = 0
 local SLIDE = TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
 
-thanks.OnClientEvent:Connect(function(name: string, amount: number, userId: number)
-	banner.Text = if userId == player.UserId
-		then "💖 Thank you so much for donating R$ " .. amount .. "! 💖"
-		else "💖 " .. name .. " donated R$ " .. amount .. "! Thank you! 💖"
+local function showBanner(text: string)
+	banner.Text = text
 	banner.Visible = true
 	banner.Position = UDim2.new(0.5, 0, 0, -80)
 	TweenService:Create(banner, SLIDE, { Position = UDim2.new(0.5, 0, 0, 12) }):Play()
 
 	local myTurn = os.clock()
-	shownAt = myTurn
+	bannerShownAt = myTurn
 	task.delay(5, function()
-		if shownAt == myTurn then -- a newer donation didn't replace this message
+		if bannerShownAt == myTurn then -- a newer donation didn't replace this message
 			TweenService:Create(banner, TweenInfo.new(0.3), { Position = UDim2.new(0.5, 0, 0, -80) }):Play()
 		end
 	end)
+end
+
+-- Confetti + big "thank you" when YOU donate --------------------------------------------
+
+local CONFETTI_PIECES = 160
+local CONFETTI_COLORS = {
+	Color3.fromRGB(255, 105, 180), -- pink
+	Color3.fromRGB(255, 70, 70), -- red
+	Color3.fromRGB(255, 165, 60), -- orange
+	Color3.fromRGB(255, 230, 80), -- yellow
+	Color3.fromRGB(100, 220, 120), -- green
+	Color3.fromRGB(90, 170, 255), -- blue
+	Color3.fromRGB(190, 110, 255), -- purple
+	Color3.new(1, 1, 1), -- white
+}
+
+-- Its own screen layer, drawn on top of all the other buttons and menus
+local party = make("ScreenGui", {
+	Name = "DonateParty",
+	ResetOnSpawn = false,
+	IgnoreGuiInset = true, -- confetti starts right at the top edge of the screen
+	DisplayOrder = 50,
+	ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
+})
+
+local function confetti()
+	local pieces = {}
+	for _ = 1, CONFETTI_PIECES do
+		local width, height = math.random(6, 10), math.random(10, 18)
+		local frame = make("Frame", {
+			AnchorPoint = Vector2.new(0.5, 0.5),
+			Size = UDim2.fromOffset(width, height),
+			BackgroundColor3 = CONFETTI_COLORS[math.random(#CONFETTI_COLORS)],
+			BorderSizePixel = 0,
+			Rotation = math.random(0, 360),
+			Position = UDim2.fromScale(0.5, -0.1),
+		})
+		frame.Parent = party
+		table.insert(pieces, {
+			frame = frame,
+			width = width,
+			height = height,
+			x = math.random(),
+			y = -0.05 - math.random() * 0.7, -- some start higher up, so they keep coming for a while
+			fall = 0.22 + math.random() * 0.22, -- screens per second
+			sway = 0.01 + math.random() * 0.025,
+			swaySpeed = 2 + math.random() * 2,
+			flipSpeed = 4 + math.random() * 6,
+			phase = math.random() * math.pi * 2,
+			spin = math.random(-300, 300),
+		})
+	end
+
+	local time = 0
+	local connection: RBXScriptConnection
+	connection = RunService.RenderStepped:Connect(function(deltaTime)
+		time += deltaTime
+		local falling = 0
+		for _, piece in pieces do
+			if not piece.frame.Parent then
+				continue
+			end
+			piece.y += piece.fall * deltaTime
+			if piece.y > 1.1 then
+				piece.frame:Destroy()
+				continue
+			end
+			falling += 1
+			local x = piece.x + math.sin(time * piece.swaySpeed + piece.phase) * piece.sway
+			piece.frame.Position = UDim2.fromScale(x, piece.y)
+			piece.frame.Rotation += piece.spin * deltaTime
+			-- squash it sideways and back, so it looks like it's flipping over as it falls
+			local flip = math.abs(math.cos(time * piece.flipSpeed + piece.phase))
+			piece.frame.Size = UDim2.fromOffset(math.max(1, piece.width * flip), piece.height)
+		end
+		if falling == 0 then
+			connection:Disconnect()
+		end
+	end)
+end
+
+local popupScale = make("UIScale", { Scale = 0 })
+local popupAmount = make("TextLabel", {
+	Name = "Amount",
+	Position = UDim2.fromOffset(20, 116),
+	Size = UDim2.new(1, -40, 0, 34),
+	BackgroundTransparency = 1,
+	Font = FONT,
+	Text = "",
+	TextScaled = true,
+	TextColor3 = COLORS.Muted,
+}, { make("UITextSizeConstraint", { MaxTextSize = 26 }) })
+
+local popup = make("Frame", {
+	Name = "ThankYou",
+	AnchorPoint = Vector2.new(0.5, 0.5),
+	Position = UDim2.fromScale(0.5, 0.42),
+	Size = UDim2.new(0.86, 0, 0, 170),
+	BackgroundColor3 = COLORS.White,
+	Visible = false,
+	ZIndex = 2, -- in front of the confetti
+}, {
+	corner(24),
+	popupScale,
+	make("UIStroke", { Color = COLORS.Pink, Thickness = 5 }),
+	make("UISizeConstraint", { MaxSize = Vector2.new(560, 170) }),
+	make("TextLabel", {
+		Name = "Title",
+		Position = UDim2.fromOffset(20, 20),
+		Size = UDim2.new(1, -40, 0, 90),
+		BackgroundTransparency = 1,
+		Font = FONT,
+		Text = "Thank you for supporting our game! 💖",
+		TextScaled = true,
+		TextColor3 = COLORS.Pink,
+	}, { make("UITextSizeConstraint", { MaxTextSize = 42 }) }),
+	popupAmount,
+})
+popup.Parent = party
+
+local popupShownAt = 0
+
+local function celebrate(amount: number)
+	confetti()
+
+	popupAmount.Text = "You donated R$ " .. amount
+	popup.Visible = true
+	popupScale.Scale = 0
+	TweenService:Create(popupScale, TweenInfo.new(0.5, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1 })
+		:Play()
+
+	local myTurn = os.clock()
+	popupShownAt = myTurn
+	task.delay(4.5, function()
+		if popupShownAt ~= myTurn then -- another donation restarted the pop-up
+			return
+		end
+		local shrink =
+			TweenService:Create(popupScale, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.In), { Scale = 0 })
+		shrink:Play()
+		shrink.Completed:Wait()
+		if popupShownAt == myTurn then
+			popup.Visible = false
+		end
+	end)
+end
+
+thanks.OnClientEvent:Connect(function(name: string, amount: number, userId: number)
+	if userId == player.UserId then
+		setOpen(false) -- close the donate menu so the pop-up is easy to see
+		celebrate(amount)
+	else
+		showBanner("💖 " .. name .. " donated R$ " .. amount .. "! Thank you! 💖")
+	end
 end)
 
+party.Parent = playerGui
 gui.Parent = playerGui
