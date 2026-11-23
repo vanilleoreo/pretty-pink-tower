@@ -1,4 +1,4 @@
--- Squishy jumps in the tower: on every level, some jumps are big soft squishies instead of plain
+-- Squishies! In the tower, some jumps on every level are big soft squishies instead of plain
 -- platforms: cats, bunnies, bears, strawberries, cupcakes and Needohs (the blob from the ASMR
 -- area), each with a cute face. When anyone lands on one, it squashes down, bulges out and
 -- wobbles back with a squish sound and a little puff. (Squishies.client.luau does the squish on
@@ -6,6 +6,8 @@
 --
 -- The real platform stays exactly where it was, just invisible, so every jump is exactly as long
 -- and as high as before. The squishy sitting on it is only for looks.
+--
+-- There are squishy toys in the lobby too (at the bottom of this script).
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local TOWER_NAME = "💥 Troll Tower Obby Parkour Fun Hard Easy"
@@ -233,14 +235,19 @@ end
 local function makeSquishy(platform: BasePart, info): Model
 	-- footprint of the platform in the world (platforms here are only ever turned flat)
 	local size, cf = platform.Size, platform.CFrame
-	local footX = math.abs(cf.RightVector.X) * size.X + math.abs(cf.LookVector.X) * size.Z
-	local footZ = math.abs(cf.RightVector.Z) * size.X + math.abs(cf.LookVector.Z) * size.Z
+	local footX = if info.size
+		then info.size.X
+		else math.abs(cf.RightVector.X) * size.X + math.abs(cf.LookVector.X) * size.Z
+	local footZ = if info.size
+		then info.size.Y
+		else math.abs(cf.RightVector.Z) * size.X + math.abs(cf.LookVector.Z) * size.Z
 	local height = info.height or math.clamp(math.min(footX, footZ) * 0.55, 3.5, 6)
 	local top = platform.Position.Y + size.Y / 2 + SINK
 	local center = Vector3.new(platform.Position.X, top - height / 2, platform.Position.Z)
 	local color = info.color or Color3.fromRGB(255, 170, 205)
 
-	local toMiddle = Vector3.new(FACE_TOWARDS.X - center.X, 0, FACE_TOWARDS.Z - center.Z)
+	local lookAt = info.faceTowards or FACE_TOWARDS
+	local toMiddle = Vector3.new(lookAt.X - center.X, 0, lookAt.Z - center.Z)
 	local front = if toMiddle.Magnitude > 1 then toMiddle.Unit else Vector3.new(0, 0, -1)
 	local side = front:Cross(Vector3.yAxis).Unit
 
@@ -376,6 +383,39 @@ for _, part in tower:GetDescendants() do
 	end
 end
 
+-- Landing on a platform squishes its squishy
+local function squishOnLanding(platform: BasePart, squishy: Model)
+	local top = platform.Position.Y + platform.Size.Y / 2
+	local lastSquish = 0
+	platform.Touched:Connect(function(hit)
+		local character = hit.Parent
+		local root = character and character:FindFirstChild("HumanoidRootPart")
+		if not root or not root:IsA("BasePart") or not character:FindFirstChildOfClass("Humanoid") then
+			return
+		end
+		if root.Position.Y < top then
+			return -- bumped it from the side or below, not landed on it
+		end
+		local now = os.clock()
+		if now - lastSquish < SQUISH_COOLDOWN then
+			return
+		end
+		lastSquish = now
+		squishEvent:FireAllClients(squishy)
+	end)
+end
+
+local function describe(kinds: { [string]: number }): string
+	local list = {}
+	for kind, count in kinds do
+		table.insert(list, `{count} {kind}`)
+	end
+	table.sort(list)
+	return table.concat(list, ", ")
+end
+
+-- In the tower ---------------------------------------------------------------------------
+
 local folder = Instance.new("Folder")
 folder.Name = "Squishies"
 
@@ -398,35 +438,69 @@ for index, info in SQUISHIES do
 		end
 	end
 	platform.Name = "Squishy Platform"
-
-	-- landing on it squishes it
-	local top = platform.Position.Y + platform.Size.Y / 2
-	local lastSquish = 0
-	platform.Touched:Connect(function(hit)
-		local character = hit.Parent
-		local root = character and character:FindFirstChild("HumanoidRootPart")
-		if not root or not root:IsA("BasePart") or not character:FindFirstChildOfClass("Humanoid") then
-			return
-		end
-		if root.Position.Y < top then
-			return -- bumped it from the side or below, not landed on it
-		end
-		local now = os.clock()
-		if now - lastSquish < SQUISH_COOLDOWN then
-			return
-		end
-		lastSquish = now
-		squishEvent:FireAllClients(squishy)
-	end)
+	squishOnLanding(platform, squishy)
 	made += 1
 	kinds[info.kind] = (kinds[info.kind] or 0) + 1
 end
 
 folder.Parent = tower
 finish()
-local list = {}
-for kind, count in kinds do
-	table.insert(list, `{count} {kind}`)
+print(`[Squishies] Made {made} squishy jumps in the tower: {describe(kinds)}`)
+
+-- In the lobby ---------------------------------------------------------------------------
+-- Big squishy toys sitting on the lobby floor. Each has a hidden solid middle, so you can jump
+-- on top and squish it. To move one, change its spot (x, z) here.
+
+local LOBBY_SQUISHIES = {
+	{ spot = Vector2.new(-122, 129), kind = "Bear", color = Color3.fromRGB(255, 200, 225), size = 6, height = 4.5 },
+	{ spot = Vector2.new(-90, 131), kind = "Cat", color = Color3.fromRGB(255, 230, 160), size = 6, height = 4.2 },
+	{ spot = Vector2.new(-110, 160), kind = "Bunny", color = Color3.fromRGB(230, 210, 255), size = 6, height = 4.2 },
+	{ spot = Vector2.new(-88, 160), kind = "Strawberry", size = 6, height = 4.5 },
+	{ spot = Vector2.new(-108, 120), kind = "Cupcake", color = Color3.fromRGB(170, 230, 255), size = 6, height = 4.6 },
+	{ spot = Vector2.new(-126, 150), kind = "Needoh", color = Color3.fromRGB(255, 170, 205), size = 7, height = 3.6 },
+	{ spot = Vector2.new(-134, 135), kind = "Cat", color = Color3.fromRGB(180, 240, 210), size = 6, height = 4.2 },
+}
+local LOBBY_FACE_TOWARDS = Vector3.new(-80, 0, 130) -- near the spawn, so new players see their faces
+local CORE = 0.7 -- the hidden solid middle is this much of the squishy's width
+
+local lobbyFolder = Instance.new("Folder")
+lobbyFolder.Name = "LobbySquishies"
+
+local floorParams = RaycastParams.new()
+floorParams.FilterType = Enum.RaycastFilterType.Exclude
+floorParams.FilterDescendantsInstances = { lobbyFolder }
+floorParams.RespectCanCollide = true
+
+local lobbyMade, lobbyKinds = 0, {}
+for _, info in LOBBY_SQUISHIES do
+	local hit = workspace:Raycast(Vector3.new(info.spot.X, 30, info.spot.Y), Vector3.new(0, -60, 0), floorParams)
+	if not hit or hit.Position.Y > 2 then
+		warn(`[Squishies] No floor for the lobby {info.kind} at {info.spot}: skipped`)
+		continue
+	end
+	-- the hidden solid middle, as tall as the squishy (minus how far your feet sink in)
+	local floorY = hit.Position.Y
+	local coreHeight = info.height - SINK
+	local core = Instance.new("Part")
+	core.Name = "Squishy Core"
+	core.Anchored = true
+	core.Transparency = 1
+	core.Size = Vector3.new(info.size * CORE, coreHeight, info.size * CORE)
+	core.CFrame = CFrame.new(info.spot.X, floorY + coreHeight / 2, info.spot.Y)
+	core.Parent = lobbyFolder
+
+	local squishy = makeSquishy(core, {
+		kind = info.kind,
+		color = info.color,
+		height = info.height,
+		size = Vector2.new(info.size, info.size),
+		faceTowards = LOBBY_FACE_TOWARDS,
+	})
+	squishy.Parent = lobbyFolder
+	squishOnLanding(core, squishy)
+	lobbyMade += 1
+	lobbyKinds[info.kind] = (lobbyKinds[info.kind] or 0) + 1
 end
-table.sort(list)
-print(`[Squishies] Made {made} squishy jumps in the tower: {table.concat(list, ", ")}`)
+
+lobbyFolder.Parent = workspace
+print(`[Squishies] Made {lobbyMade} squishies in the lobby: {describe(lobbyKinds)}`)
