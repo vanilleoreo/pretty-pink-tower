@@ -1,6 +1,8 @@
 -- The giant keyboard (Workspace.KeyboardSystem): keys you step on sink down and click.
 -- This is the keyboard's own script, moved here because LocalScripts don't run in Workspace.
 -- It only moves keys on your own screen, the same as the original.
+-- It also works for the pink keyboards in the tower (TowerKeyboards.server.luau), because those
+-- keys are put inside KeyboardSystem.Keycaps too.
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 

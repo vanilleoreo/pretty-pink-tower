@@ -240,9 +240,10 @@ local SEAMS = { 49, 99, 149, 199, 249, 299, 349, 397 } -- garland heights: where
 local GARLAND_SPACING = 3 -- studs between blossoms in a garland
 local VINE_SPACING = 4.5 -- studs between blossoms going up a corner
 local TOWER_TREE = { -108, 200, 1.25 } -- middle of the ground floor
-local TOWER_BUSHES = { { -134, 222 }, { -90, 223 }, { -134, 190 }, { -90, 188 } }
+-- (bushes and petals stay between the two pink keyboards, see TowerKeyboards.server.luau)
+local TOWER_BUSHES = { { -118, 178 }, { -98, 178 }, { -118, 222 }, { -98, 222 } }
 local TOWER_PETAL_PATCHES = 24
-local TOWER_FLOOR = { minX = -135, maxX = -85, minZ = 174, maxZ = 225 }
+local TOWER_FLOOR = { minX = -118, maxX = -98, minZ = 174, maxZ = 225 }
 
 local tower = workspace:WaitForChild(TOWER_NAME, 30)
 if not tower then
