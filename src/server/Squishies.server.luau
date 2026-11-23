@@ -1,5 +1,5 @@
--- Squishy jumps in the tower: on each level, one jump is a big soft squishy (the Needoh from the
--- ASMR area) instead of a plain platform. When anyone lands on it, it squashes down, bulges out
+-- Squishy jumps in the tower: on every level, some jumps are big soft squishies (the Needoh from the
+-- ASMR area) instead of plain platforms. When anyone lands on one, it squashes down, bulges out
 -- and wobbles back with a squish sound and a little puff. (Squishies.client.luau does the squish
 -- on everyone's screen, so it looks smooth.)
 --
@@ -8,15 +8,28 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local TOWER_NAME = "💥 Troll Tower Obby Parkour Fun Hard Easy"
-local SQUISHIES = { -- the top middle of each platform that becomes a squishy, and its colour
+-- The top middle of each platform that becomes a squishy, its colour, and (where there isn't much
+-- room under the platform) how tall the squishy is; otherwise it's about half as tall as it's wide
+local SQUISHIES = {
 	{ Vector3.new(-122.45, 29.34, 233.26), Color3.fromRGB(255, 170, 205) }, -- level 1: pink
 	{ Vector3.new(-100.45, 59.34, 175.26), Color3.fromRGB(200, 170, 255) }, -- level 2: lilac
+	{ Vector3.new(-76.45, 51.34, 231.26), Color3.fromRGB(215, 190, 255), 2.2 }, -- level 2: lavender cushion
+	{ Vector3.new(-76.45, 53.34, 175.26), Color3.fromRGB(255, 150, 200), 4.2 }, -- level 2: bubblegum
 	{ Vector3.new(-107.45, 115.34, 185.26), Color3.fromRGB(165, 235, 200) }, -- level 3: mint
+	{ Vector3.new(-77.45, 102.34, 225.26), Color3.fromRGB(150, 220, 255), 3.2 }, -- level 3: sky blue
+	{ Vector3.new(-127.45, 115.34, 185.26), Color3.fromRGB(255, 185, 140), 4.4 }, -- level 3: apricot
 	{ Vector3.new(-128.45, 159.5, 175.26), Color3.fromRGB(255, 200, 160) }, -- level 4: peach
+	{ Vector3.new(-76.45, 159.5, 175.95), Color3.fromRGB(150, 240, 220), 5.5 }, -- level 4: seafoam
+	{ Vector3.new(-128.45, 175.5, 232.26), Color3.fromRGB(255, 120, 160), 5.5 }, -- level 4: rose
 	{ Vector3.new(-133.45, 230.34, 190.26), Color3.fromRGB(165, 210, 255) }, -- level 5: baby blue
+	{ Vector3.new(-76.45, 199.34, 233.26), Color3.fromRGB(180, 180, 255), 5.5 }, -- level 5: periwinkle
+	{ Vector3.new(-131.45, 202.34, 175.26), Color3.fromRGB(255, 245, 200), 3.2 }, -- level 5: cream
 	{ Vector3.new(-98.95, 264.34, 199.76), Color3.fromRGB(255, 236, 150) }, -- level 6: lemon
+	{ Vector3.new(-124.45, 286.34, 230.26), Color3.fromRGB(255, 190, 210), 5.5 }, -- level 6: strawberry milk
 	{ Vector3.new(-133.95, 343.29, 175.76), Color3.fromRGB(255, 140, 170) }, -- level 7: coral
 	{ Vector3.new(-101.95, 375.34, 234.26), Color3.fromRGB(230, 150, 255) }, -- level 8: orchid
+	{ Vector3.new(-133.95, 353.29, 191.26), Color3.fromRGB(200, 150, 255), 4.2 }, -- level 8: grape
+	{ Vector3.new(-133.95, 355.29, 206.26), Color3.fromRGB(190, 255, 170), 5.5 }, -- level 8: melon
 }
 local SQUISH_SOUND = "rbxassetid://119626733196698" -- the same squish sound as the Needohs
 local SINK = 0.35 -- how far your feet sink into the top of a squishy
@@ -63,9 +76,9 @@ end
 local folder = Instance.new("Folder")
 folder.Name = "Squishies"
 
-local function makeSquishy(platform: BasePart, color: Color3): MeshPart
+local function makeSquishy(platform: BasePart, color: Color3, tallness: number?): MeshPart
 	local size = platform.Size
-	local height = math.clamp(math.min(size.X, size.Z) * 0.55, 3.5, 6)
+	local height = tallness or math.clamp(math.min(size.X, size.Z) * 0.55, 3.5, 6)
 	local top = platform.Position.Y + size.Y / 2
 
 	local squishy = needoh:Clone()
@@ -126,7 +139,7 @@ for index, info in SQUISHIES do
 		warn(`[Squishies] Couldn't find the platform for squishy {index}: skipped`)
 		continue
 	end
-	local squishy = makeSquishy(platform, info[2])
+	local squishy = makeSquishy(platform, info[2], info[3])
 
 	-- hide the plain platform (it still holds you up) and give it a new name, so the tower
 	-- keyboards don't cover it in keys
