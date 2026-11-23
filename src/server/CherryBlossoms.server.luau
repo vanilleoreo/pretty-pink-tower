@@ -250,6 +250,13 @@ if not tower then
 	return
 end
 
+-- Wait for ObbyParts to add the easy final stage (ladders and pink paths), so no blossom ends
+-- up on top of them
+local waited = 0
+while not tower:GetAttribute("ObbyReady") and waited < 15 do
+	waited += task.wait(0.2)
+end
+
 local inside = Instance.new("Folder")
 inside.Name = "Tower"
 

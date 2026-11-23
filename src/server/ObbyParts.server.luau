@@ -9,10 +9,10 @@ local DAMAGE_COOLDOWN = 0.2 -- seconds between hits from kill parts, so KILLPART
 local CONVEYOR_SPEED = 25 -- used if an AutoSpeed part has no Speed value inside it
 local DISAPPEAR_DELAY = 0.4 -- seconds after you step on a disappearing part before it starts to fade
 
--- The final stage to the sofa: the black disappearing blocks after the door room
-local FINAL_BLOCK_WIDTH = 6 -- studs across (they used to be tiny 1 x 1 stud blocks)
-local FINAL_BLOCK_DEPTH = 4 -- studs along the path; the blocks are 7 studs apart, so this leaves 3-stud gaps
-local FINAL_BLOCK_DELAY = 1.2 -- more time on them before they fade
+-- The final stage (the purple top floor and the path to the sofa) is made easy below
+local EASY_PATH_COLOR = Color3.fromRGB(255, 160, 205) -- colour of the parts added to make it easy
+local FINAL_BLOCK_WIDTH = 6 -- the black blocks to the sofa: studs across (they used to be 1 x 1)
+local FINAL_BLOCK_DEPTH = 7 -- studs along the path: they're 7 apart, so they join into one path
 
 local function getCharacter(hit)
 	local character = hit.Parent
@@ -36,7 +36,7 @@ local function setupDisappearing(part)
 		end
 		fading[part] = true
 
-		task.wait(part:GetAttribute("DisappearDelay") or DISAPPEAR_DELAY)
+		task.wait(DISAPPEAR_DELAY)
 		TweenService:Create(part, TweenInfo.new(0.3), { Transparency = 1 }):Play()
 		task.wait(0.3)
 		part.CanCollide = false
@@ -204,30 +204,107 @@ local setups = {
 	end,
 }
 
--- Make the final stage to the sofa easier: the 8 black blocks between the door room and the
--- sofa platform become proper little platforms (gaps of 3 studs instead of 6), and wait longer
--- before they vanish. They're the only tiny disappearing parts up at the top.
-local finalBlocks = 0
+-- Easy final stage ------------------------------------------------------------------
+-- The purple top floor of the tower and the path to the sofa were really hard, so:
+--   * the red kill blocks up there are gone (on the purple floor and on the rainbow bridge)
+--   * pink parts fill the gaps, so you can walk almost the whole way
+--   * two pink climbing ladders: one up the corner, and one up to the rainbow bridge instead
+--     of the disappearing platforms (they were 8 studs apart, too high to jump)
+--   * the black blocks to the sofa join up into one path and don't disappear any more
+-- All the new parts go in a folder called "EasyFinalStage" inside the tower.
+
+-- Each filler is { one corner, the opposite corner }, measured from the place file
+local FILLERS = {
+	-- purple floor: steps between the stairs up the west wall, and on to the corner
+	{ Vector3.new(-138.954, 351.29, 181.263), Vector3.new(-128.954, 352.29, 186.263) },
+	{ Vector3.new(-138.954, 353.29, 196.263), Vector3.new(-128.954, 354.29, 201.263) },
+	{ Vector3.new(-138.954, 355.29, 211.263), Vector3.new(-128.954, 356.29, 216.263) },
+	{ Vector3.new(-138.954, 356.29, 226.263), Vector3.new(-128.954, 357.29, 231.263) },
+	-- purple floor: the three gaps along the north side
+	{ Vector3.new(-128.454, 374.34, 231.263), Vector3.new(-123.454, 375.34, 237.263) },
+	{ Vector3.new(-112.454, 374.34, 231.263), Vector3.new(-107.454, 375.34, 237.263) },
+	{ Vector3.new(-96.454, 374.34, 231.263), Vector3.new(-91.454, 375.34, 237.263) },
+	-- purple floor: a wide walkway next to the thin beam on the east side
+	{ Vector3.new(-86.454, 374.34, 170.263), Vector3.new(-81.454, 375.34, 231.263) },
+	-- purple floor: a bigger landing in the south-east corner, up to the ladder
+	{ Vector3.new(-98.454, 374.34, 171.263), Vector3.new(-86.454, 375.34, 176.263) },
+	{ Vector3.new(-98.454, 374.34, 170.263), Vector3.new(-95.454, 375.34, 171.263) },
+	-- rainbow bridge: the gaps between the coloured parts, and on to the door room
+	{ Vector3.new(-112.454, 398.34, 156.263), Vector3.new(-98.454, 399.34, 158.263) },
+	{ Vector3.new(-112.454, 398.34, 143.263), Vector3.new(-98.454, 399.34, 145.263) },
+	{ Vector3.new(-112.454, 398.34, 130.263), Vector3.new(-98.454, 399.34, 132.263) },
+	{ Vector3.new(-112.454, 398.34, 117.263), Vector3.new(-98.454, 399.34, 119.263) },
+	{ Vector3.new(-112.454, 398.34, 104.263), Vector3.new(-98.454, 399.34, 106.263) },
+	{ Vector3.new(-112.454, 398.34, 91.263), Vector3.new(-98.454, 399.34, 93.263) },
+	{ Vector3.new(-112.454, 398.34, 78.263), Vector3.new(-98.454, 399.34, 80.263) },
+	{ Vector3.new(-112.454, 398.34, 65.263), Vector3.new(-98.454, 399.34, 67.263) },
+	-- black path to the sofa: from the door room to the first block, and from the last block to the sofa
+	{ Vector3.new(-108.454, 398.34, 19.263), Vector3.new(-102.454, 399.34, 22.263) },
+	{ Vector3.new(-108.454, 398.34, -39.737), Vector3.new(-102.454, 399.34, -36.737) },
+}
+
+-- Climbing ladders: { bottom middle, height }
+local LADDERS = {
+	{ Vector3.new(-133.954, 357.29, 230.263), 20 }, -- up the corner of the purple floor
+	{ Vector3.new(-99.454, 375.34, 171.263), 26 }, -- from the south-east corner up to the rainbow bridge
+}
+
+local easyStage = Instance.new("Folder")
+easyStage.Name = "EasyFinalStage"
+
+local function smooth(part: BasePart)
+	part.Anchored = true
+	part.Material = Enum.Material.SmoothPlastic
+	part.TopSurface = Enum.SurfaceType.Smooth
+	part.BottomSurface = Enum.SurfaceType.Smooth
+	part.Color = EASY_PATH_COLOR
+	part.Parent = easyStage
+end
+
+for _, corners in FILLERS do
+	local filler = Instance.new("Part")
+	filler.Name = "EasyPath"
+	filler.Size = corners[2] - corners[1]
+	filler.CFrame = CFrame.new((corners[1] + corners[2]) / 2)
+	smooth(filler)
+end
+
+for _, info in LADDERS do
+	local bottom, height = info[1], info[2]
+	local ladder = Instance.new("TrussPart")
+	ladder.Name = "EasyLadder"
+	ladder.Size = Vector3.new(2, height, 2)
+	ladder.CFrame = CFrame.new(bottom + Vector3.new(0, height / 2, 0))
+	smooth(ladder)
+end
+
+local removedKillParts, finalBlocks = 0, 0
 for _, part in obby:GetDescendants() do
-	if
-		part:IsA("BasePart")
-		and part.Name == "Disappearing Part"
-		and part.Size.X <= 1.5
-		and part.Size.Z <= 1.5
-		and part.Position.Y > 390
-	then
-		-- The path runs along Z. These blocks are turned sideways, so check which way the part's own
-		-- X side points before choosing which side gets the width and which the depth.
-		-- (A part grows around its middle, so the top stays at the same height.)
+	if not part:IsA("BasePart") then
+		continue
+	end
+	if string.find(part.Name, "KILLPART", 1, true) and part.Position.Y > 370 then
+		-- the red kill blocks on the purple floor and the red strips on the rainbow bridge
+		part:Destroy()
+		removedKillParts += 1
+	elseif part.Name == "Disappearing Part" and part.Size.X <= 1.5 and part.Size.Z <= 1.5 and part.Position.Y > 390 then
+		-- the tiny black blocks to the sofa: make them big enough to join into one path. The path
+		-- runs along Z and these blocks are turned sideways, so check which way the part's own
+		-- X side points. (A part grows around its middle, so the top stays at the same height.)
 		local sideways = math.abs(part.CFrame.RightVector.Z) > math.abs(part.CFrame.RightVector.X)
 		part.Size = if sideways
 			then Vector3.new(FINAL_BLOCK_DEPTH, part.Size.Y, FINAL_BLOCK_WIDTH)
 			else Vector3.new(FINAL_BLOCK_WIDTH, part.Size.Y, FINAL_BLOCK_DEPTH)
-		part:SetAttribute("DisappearDelay", FINAL_BLOCK_DELAY)
+		part.Name = "Final Block" -- a new name, so it isn't set up as a disappearing part below
 		finalBlocks += 1
 	end
 end
-print("[ObbyParts] Made the " .. finalBlocks .. " final blocks to the sofa bigger")
+
+easyStage.Parent = obby
+print(
+	`[ObbyParts] Easy final stage: {#FILLERS} pink path parts, {#LADDERS} ladders, `
+		.. `{removedKillParts} kill parts removed, {finalBlocks} black blocks joined into a path`
+)
 
 local count = 0
 for _, part in obby:GetDescendants() do
@@ -238,3 +315,4 @@ for _, part in obby:GetDescendants() do
 	end
 end
 print("[ObbyParts] Set up " .. count .. " obby parts")
+obby:SetAttribute("ObbyReady", true) -- the cherry blossoms wait for this, so none end up on the new parts
