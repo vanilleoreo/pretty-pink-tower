@@ -140,9 +140,10 @@ local tower = workspace:WaitForChild(TOWER_NAME, 30)
 if not tower then
 	return
 end
--- wait for ObbyParts to finish (it adds the easy final stage and removes some kill parts first)
+-- wait for ObbyParts (it adds the easy final stage and removes some kill parts) and for the
+-- squishy jumps (those platforms don't get keys) to be ready first
 local waited = 0
-while not tower:GetAttribute("ObbyReady") and waited < 15 do
+while not (tower:GetAttribute("ObbyReady") and tower:GetAttribute("SquishiesReady")) and waited < 15 do
 	waited += task.wait(0.2)
 end
 
