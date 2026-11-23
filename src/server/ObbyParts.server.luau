@@ -25,8 +25,17 @@ end
 -- Disappearing parts: fade out shortly after you step on them, come back 3 seconds later
 local fading = {} -- parts that are mid-fade, so touching again doesn't restart it
 
+local fixedFadingParts = 0
+
 local function setupDisappearing(part)
-	-- Some of these start invisible, so put back what each one looked like, not just "visible"
+	-- Some fading parts in the place start invisible and not solid (27 strips of the white
+	-- bridge on level 2 and 3 strips of the rainbow bridge on level 5), which just looked like
+	-- missing pieces. They start visible and solid now, like all the others.
+	if part.Transparency >= 0.95 and not part.CanCollide then
+		part.Transparency = 0
+		part.CanCollide = true
+		fixedFadingParts += 1
+	end
 	local startTransparency = part.Transparency
 	local startCanCollide = part.CanCollide
 
@@ -314,5 +323,5 @@ for _, part in obby:GetDescendants() do
 		count += 1
 	end
 end
-print("[ObbyParts] Set up " .. count .. " obby parts")
+print("[ObbyParts] Set up " .. count .. " obby parts (" .. fixedFadingParts .. " missing fading parts put back)")
 obby:SetAttribute("ObbyReady", true) -- the cherry blossoms wait for this, so none end up on the new parts
