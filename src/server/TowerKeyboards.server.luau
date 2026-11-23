@@ -99,16 +99,28 @@ end
 folder.Parent = keycaps
 print(`[TowerKeyboards] Made {made} pink keyboards in the tower with {total} keys`)
 
--- Keyboards on the levels up the tower --------------------------------------------------
--- Every plain platform inside the tower that's big enough gets a keyboard on top. Platforms with
--- anything on or just above them (kill blocks, fly zones, teleports, the next platform) are left
--- alone, and so are special parts (ice, disappearing, conveyors, troll platforms), because
--- only parts called "Part" are used. Each level has its own shade of pink.
+-- Keyboards everywhere on every stage of the tower ------------------------------------------
+-- Every platform in the tower gets keys on top, all the way up to the path to the sofa. A key is
+-- left out only where something is right on that spot (a wall, the next ladder rung, a
+-- checkpoint...) and near kill parts, so the red danger stays easy to see. Keys on disappearing
+-- and troll-button platforms vanish together with their platform. Each level has its own pink.
 
+local PLATFORM_NAMES = { -- which parts count as platforms (kill parts and the finish don't)
+	["Part"] = true,
+	["Ice Part"] = true,
+	["Disappearing Part"] = true,
+	["AutoSpeed"] = true, -- conveyors
+	["Pyong2"] = true, -- troll platforms (a button hides them)
+	["Pyong3"] = true,
+	["gnoyP"] = true,
+	["gnopq"] = true,
+	["EasyPath"] = true, -- the pink parts of the easy final stage
+	["Final Block"] = true, -- the black path to the sofa
+}
+local VANISHING = { ["Disappearing Part"] = true, ["Pyong2"] = true, ["Pyong3"] = true }
 local TOWER_NAME = "💥 Troll Tower Obby Parkour Fun Hard Easy"
-local INSIDE = { minX = -139.6, maxX = -71.3, minZ = 170.1, maxZ = 238.4 } -- inside the tower's walls
 local LEVEL_HEIGHT = 50
-local LEVEL_SHADES = { -- { main, border and sparkles }, from level 1 at the bottom to level 8 at the top
+local LEVEL_SHADES = { -- { main, border and sparkles }, from level 1 at the bottom upwards
 	{ Color3.fromRGB(255, 209, 224), Color3.fromRGB(255, 140, 180) }, -- 1 blush
 	{ Color3.fromRGB(255, 150, 200), Color3.fromRGB(255, 230, 242) }, -- 2 bubblegum
 	{ Color3.fromRGB(252, 142, 172), Color3.fromRGB(255, 214, 226) }, -- 3 flamingo
@@ -117,15 +129,18 @@ local LEVEL_SHADES = { -- { main, border and sparkles }, from level 1 at the bot
 	{ Color3.fromRGB(255, 102, 153), Color3.fromRGB(255, 205, 225) }, -- 6 rose
 	{ Color3.fromRGB(242, 140, 210), Color3.fromRGB(255, 225, 245) }, -- 7 orchid pink
 	{ Color3.fromRGB(230, 70, 150), Color3.fromRGB(255, 190, 225) }, -- 8 magenta
+	{ Color3.fromRGB(255, 182, 207), Color3.fromRGB(255, 105, 180) }, -- the final stage to the sofa: pearl pink
 }
-local MIN_PLATFORM_SIZE = 6 -- studs; smaller platforms don't get a keyboard
-local LEVEL_PRESS_DEPTH = 0.6 -- the platforms are thin, so these keys only sink a little
+local KEY_SCALE = 1.5 -- tower keys are 1.5 times bigger than the keyboard room's, so there aren't too many
+local LEVEL_PRESS_DEPTH = 0.6 -- platforms can be thin, so these keys only sink a little
+local KEEP_CLEAR = 0.4 -- studs around a key that have to be empty
+local KILL_CLEARANCE = 1.5 -- studs of no keys around kill parts
 
 local tower = workspace:WaitForChild(TOWER_NAME, 30)
 if not tower then
 	return
 end
--- wait for ObbyParts to finish (it removes the kill blocks on the top floor first)
+-- wait for ObbyParts to finish (it adds the easy final stage and removes some kill parts first)
 local waited = 0
 while not tower:GetAttribute("ObbyReady") and waited < 15 do
 	waited += task.wait(0.2)
@@ -134,82 +149,111 @@ end
 local levels = Instance.new("Folder")
 levels.Name = "Tower levels"
 
-local aboveParams = OverlapParams.new()
-aboveParams.FilterType = Enum.RaycastFilterType.Exclude
-aboveParams.FilterDescendantsInstances = { keycaps, levels }
-
-local function hasKeyboardSpace(part: BasePart): boolean
-	if part.Name ~= "Part" or part.ClassName ~= "Part" or (part :: Part).Shape ~= Enum.PartType.Block then
-		return false
+local killParts = {}
+for _, part in tower:GetDescendants() do
+	if part:IsA("BasePart") and string.find(part.Name, "KILLPART", 1, true) then
+		table.insert(killParts, part)
 	end
-	if not part.CanCollide or part.Transparency >= 0.5 or part.CFrame.UpVector.Y < 0.99 then
-		return false -- see-through, not solid, or not lying flat
-	end
-	local size, position = part.Size, part.Position
-	if size.Y > 2.1 or size.X < MIN_PLATFORM_SIZE or size.Z < MIN_PLATFORM_SIZE then
-		return false -- a wall or block, or too small
-	end
-	local top = position.Y + size.Y / 2
-	if top < 20 or top > 398 then
-		return false -- the ground floor has its own keyboards; the top of the tower is the way out
-	end
-	-- (the platform is flat, so it's only turned around the vertical; check its corners are inside)
-	local halfX = math.abs(part.CFrame.RightVector.X) * size.X / 2 + math.abs(part.CFrame.LookVector.X) * size.Z / 2
-	local halfZ = math.abs(part.CFrame.RightVector.Z) * size.X / 2 + math.abs(part.CFrame.LookVector.Z) * size.Z / 2
-	if
-		position.X - halfX < INSIDE.minX
-		or position.X + halfX > INSIDE.maxX
-		or position.Z - halfZ < INSIDE.minZ
-		or position.Z + halfZ > INSIDE.maxZ
-	then
-		return false
-	end
-	-- nothing sitting on it or hanging just above it
-	aboveParams.FilterDescendantsInstances = { keycaps, levels, part }
-	local above = workspace:GetPartBoundsInBox(
-		part.CFrame * CFrame.new(0, size.Y / 2 + 2.52, 0),
-		Vector3.new(size.X - 0.1, 5, size.Z - 0.1),
-		aboveParams
-	)
-	return #above == 0
 end
 
-local levelKeys, levelBoards = 0, 0
+local spotParams = OverlapParams.new()
+spotParams.FilterType = Enum.RaycastFilterType.Exclude
+local killParams = OverlapParams.new()
+killParams.FilterType = Enum.RaycastFilterType.Include
+killParams.FilterDescendantsInstances = killParts
+
+local keySize = template.Size * Vector3.new(KEY_SCALE, 1.2, KEY_SCALE)
+local pitch = SPACING * KEY_SCALE
+
+local function isPlatform(part: BasePart): boolean
+	if not PLATFORM_NAMES[part.Name] or part.ClassName ~= "Part" or (part :: Part).Shape ~= Enum.PartType.Block then
+		return false
+	end
+	if not part.Anchored or not part.CanCollide or part.Transparency >= 0.5 then
+		return false -- swinging, not solid, or see-through
+	end
+	if part.CFrame.UpVector.Y < 0.99 or part.Size.X < pitch or part.Size.Z < pitch then
+		return false -- not lying flat, or too small for even one key
+	end
+	local top = part.Position.Y + part.Size.Y / 2
+	return top > 1 and top < 401 -- the ground floor has its own keyboards
+end
+
+local levelKeys, levelBoards, built = 0, 0, 0
 for _, part in tower:GetDescendants() do
-	if not part:IsA("BasePart") or not hasKeyboardSpace(part) then
+	if not part:IsA("BasePart") or not isPlatform(part) then
 		continue
 	end
 	local top = part.Position.Y + part.Size.Y / 2
 	local level = math.clamp(math.floor((top + 1) / LEVEL_HEIGHT) + 1, 1, #LEVEL_SHADES)
 	local main, accent = LEVEL_SHADES[level][1], LEVEL_SHADES[level][2]
+	spotParams.FilterDescendantsInstances = { keycaps, levels, part }
 
-	local columns = math.floor((part.Size.X - 0.2) / SPACING)
-	local rows = math.floor((part.Size.Z - 0.2) / SPACING)
-	local board = Instance.new("Folder")
-	board.Name = `Level {level}`
+	local columns = math.floor((part.Size.X - 0.2) / pitch)
+	local rows = math.floor((part.Size.Z - 0.2) / pitch)
+	local keys = {}
 	for column = 0, columns - 1 do
 		for row = 0, rows - 1 do
+			local spot = part.CFrame
+				* CFrame.new((column - (columns - 1) / 2) * pitch, part.Size.Y / 2 + keySize.Y / 2 + 0.05, (row - (rows - 1) / 2) * pitch)
+			-- is this spot free, and not close to a kill part?
+			local busy = workspace:GetPartBoundsInBox(
+				spot * CFrame.new(0, 0.15, 0),
+				Vector3.new(pitch + KEEP_CLEAR * 2, keySize.Y + 0.3, pitch + KEEP_CLEAR * 2),
+				spotParams
+			)
+			if #busy > 0 then
+				continue
+			end
+			local danger = workspace:GetPartBoundsInBox(
+				spot,
+				Vector3.new(pitch + KILL_CLEARANCE * 2, 3, pitch + KILL_CLEARANCE * 2),
+				killParams
+			)
+			if #danger > 0 then
+				continue
+			end
+
 			local onBorder = column == 0 or row == 0 or column == columns - 1 or row == rows - 1
 			local key = template:Clone()
 			key.Name = "keycap"
 			key.Anchored = true
 			key.CanCollide = false
 			key.CanTouch = false
-			key.CFrame = part.CFrame
-				* CFrame.new(
-					(column - (columns - 1) / 2) * SPACING,
-					part.Size.Y / 2 + keyHeight / 2 + 0.05,
-					(row - (rows - 1) / 2) * SPACING
-				)
+			key.Size = keySize
+			key.CFrame = spot
 			key.Color = if onBorder or rng:NextNumber() < SPARKLE_KEYS then accent else main
 			key:SetAttribute("PressDepth", LEVEL_PRESS_DEPTH)
-			key.Parent = board
-			levelKeys += 1
+			table.insert(keys, key)
 		end
 	end
+	if #keys == 0 then
+		continue
+	end
+
+	local board = Instance.new("Folder")
+	board.Name = `Level {level}`
+	for _, key in keys do
+		key.Parent = board
+	end
 	board.Parent = levels
+	levelKeys += #keys
 	levelBoards += 1
+
+	-- keys on disappearing and troll platforms disappear and come back with them
+	if VANISHING[part.Name] then
+		part:GetPropertyChangedSignal("Transparency"):Connect(function()
+			for _, key in keys do
+				key.Transparency = part.Transparency
+			end
+		end)
+	end
+
+	built += 1
+	if built % 20 == 0 then
+		task.wait() -- give the server a breather while building thousands of keys
+	end
 end
 
 levels.Parent = folder
-print(`[TowerKeyboards] Made {levelBoards} keyboards on the levels up the tower with {levelKeys} keys`)
+print(`[TowerKeyboards] Made {levelBoards} keyboards on every stage of the tower with {levelKeys} keys`)
