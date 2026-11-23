@@ -1,6 +1,7 @@
 -- The squish effect for the squishy jumps in the tower (made by Squishies.server.luau).
--- When someone lands on a squishy, it squashes down and bulges out, then wobbles back like jelly,
--- with a squish sound and a little sparkly puff. It happens on your own screen so it's smooth.
+-- When someone lands on a squishy, the whole thing (body, ears, leaves, cherry...) squashes down
+-- and bulges out, then wobbles back like jelly, with a squish sound and a little sparkly puff.
+-- It happens on your own screen so it's smooth.
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
 
@@ -12,51 +13,83 @@ local WOBBLE_TIME = 0.8 -- seconds to wobble back
 
 local squishEvent = ReplicatedStorage:WaitForChild("Squish") :: RemoteEvent
 
-local normal = setmetatable({}, { __mode = "k" }) -- each squishy's normal size and position
-local tweens = setmetatable({}, { __mode = "k" }) -- the squish that's playing on each squishy
+local rest = setmetatable({}, { __mode = "k" }) -- each part's normal size and position
+local tweens = setmetatable({}, { __mode = "k" }) -- the squish that's playing on each part
 
-squishEvent.OnClientEvent:Connect(function(squishy)
-	-- (it can be missing if it's far away and hasn't loaded on this screen)
-	if typeof(squishy) ~= "Instance" or not squishy:IsA("BasePart") or not squishy:IsDescendantOf(workspace) then
-		return
+-- How much a side of a part stretches: sides pointing up get squashed, sideways ones bulge
+local function stretch(axis: Vector3): number
+	return axis.X * axis.X * BULGE + axis.Y * axis.Y * SQUASH + axis.Z * axis.Z * BULGE
+end
+
+local function squishPart(part: BasePart, pivot: Vector3)
+	local normal = rest[part]
+	if not normal then
+		normal = { size = part.Size, cframe = part.CFrame }
+		rest[part] = normal
 	end
+	local size, cframe = normal.size, normal.cframe
 
-	local rest = normal[squishy]
-	if not rest then
-		rest = { size = squishy.Size, cframe = squishy.CFrame }
-		normal[squishy] = rest
-	end
+	-- everything moves towards the top middle, squashed down and pushed outwards
+	local offset = cframe.Position - pivot
+	local squashedPosition = pivot + Vector3.new(offset.X * BULGE, offset.Y * SQUASH - TOP_DROP, offset.Z * BULGE)
+	local squashedSize = size
+		* Vector3.new(stretch(cframe.RightVector), stretch(cframe.UpVector), stretch(cframe.LookVector))
+	local squashedCFrame = CFrame.new(squashedPosition) * cframe.Rotation
 
-	local size, cframe = rest.size, rest.cframe
-	local top = cframe.Position.Y + size.Y / 2
-	local squashedSize = Vector3.new(size.X * BULGE, size.Y * SQUASH, size.Z * BULGE)
-	local squashedCFrame = cframe + Vector3.new(0, top - TOP_DROP - squashedSize.Y / 2 - cframe.Position.Y, 0)
-
-	local playing = tweens[squishy]
+	local playing = tweens[part]
 	if playing then
 		playing:Cancel()
 	end
 	local squash = TweenService:Create(
-		squishy,
+		part,
 		TweenInfo.new(SQUASH_TIME, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
 		{ Size = squashedSize, CFrame = squashedCFrame }
 	)
-	tweens[squishy] = squash
+	tweens[part] = squash
 	squash.Completed:Connect(function(state)
 		if state ~= Enum.PlaybackState.Completed then
 			return
 		end
 		local wobble = TweenService:Create(
-			squishy,
+			part,
 			TweenInfo.new(WOBBLE_TIME, Enum.EasingStyle.Elastic, Enum.EasingDirection.Out),
 			{ Size = size, CFrame = cframe }
 		)
-		tweens[squishy] = wobble
+		tweens[part] = wobble
 		wobble:Play()
 	end)
 	squash:Play()
+end
 
-	local effects = squishy:FindFirstChild("SquishEffects")
+squishEvent.OnClientEvent:Connect(function(squishy)
+	-- (it can be missing if it's far away and hasn't loaded on this screen)
+	if typeof(squishy) ~= "Instance" or not squishy:IsDescendantOf(workspace) then
+		return
+	end
+
+	local parts = {}
+	if squishy:IsA("BasePart") then
+		table.insert(parts, squishy)
+	end
+	for _, descendant in squishy:GetDescendants() do
+		if descendant:IsA("BasePart") then
+			table.insert(parts, descendant)
+		end
+	end
+	if #parts == 0 then
+		return
+	end
+
+	local pivot = squishy:GetAttribute("Pivot")
+	if typeof(pivot) ~= "Vector3" then
+		local first = parts[1]
+		pivot = first.Position + Vector3.new(0, first.Size.Y / 2, 0)
+	end
+	for _, part in parts do
+		squishPart(part, pivot)
+	end
+
+	local effects = squishy:FindFirstChild("SquishEffects", true)
 	local sound = effects and effects:FindFirstChild("SquishSound")
 	if sound and sound:IsA("Sound") then
 		sound.PlaybackSpeed = 0.8 + math.random() * 0.3 -- a slightly different squish each time
