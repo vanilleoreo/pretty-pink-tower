@@ -1,6 +1,7 @@
 -- The squish effect for the squishy jumps in the tower (made by Squishies.server.luau).
 -- When someone lands on a squishy, the whole thing (body, ears, leaves, cherry...) squashes down
--- and bulges out, then wobbles back like jelly, with a squish sound and a little sparkly puff.
+-- and bulges out, then wobbles back like jelly, with a squish (or crunch) sound and a little
+-- sparkly puff.
 -- It happens on your own screen so it's smooth.
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
@@ -92,7 +93,10 @@ squishEvent.OnClientEvent:Connect(function(squishy)
 	local effects = squishy:FindFirstChild("SquishEffects", true)
 	local sound = effects and effects:FindFirstChild("SquishSound")
 	if sound and sound:IsA("Sound") then
-		sound.PlaybackSpeed = 0.8 + math.random() * 0.3 -- a slightly different squish each time
+		-- a slightly different pitch each time (crunchy squishies are set higher)
+		local low = sound:GetAttribute("PitchMin") or 0.8
+		local high = sound:GetAttribute("PitchMax") or 1.1
+		sound.PlaybackSpeed = low + math.random() * (high - low)
 		sound:Play()
 	end
 	local puff = effects and effects:FindFirstChild("SquishPuff")

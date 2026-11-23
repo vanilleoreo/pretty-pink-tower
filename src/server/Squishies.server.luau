@@ -1,7 +1,7 @@
 -- Squishies! In the tower, some jumps on every level are big soft squishies instead of plain
 -- platforms: cats, bunnies, bears, strawberries, cupcakes and Needohs (the blob from the ASMR
 -- area), each with a cute face. When anyone lands on one, it squashes down, bulges out and
--- wobbles back with a squish sound and a little puff. (Squishies.client.luau does the squish on
+-- wobbles back with a squish (or crunch) sound and a little puff. (Squishies.client.luau does the squish on
 -- everyone's screen, so it looks smooth.)
 --
 -- The real platform stays exactly where it was, just invisible, so every jump is exactly as long
@@ -37,7 +37,13 @@ local SQUISHIES = {
 	{ at = Vector3.new(-133.95, 355.29, 206.26), kind = "Cat", color = Color3.fromRGB(190, 255, 170), height = 5.5 },
 }
 
-local SQUISH_SOUND = "rbxassetid://119626733196698" -- the same squish sound as the Needohs
+-- Half the squishies squish and the other half crunch (they take turns). To use another sound,
+-- find one in the Toolbox (Audio), copy its ID and paste it here.
+local SOUNDS = {
+	squish = { id = "rbxassetid://119626733196698", pitch = { 0.8, 1.1 } }, -- the Needohs' squish
+	-- the press sound of the squishy pad ("s") in the ASMR area, played higher so it's crunchier
+	crunch = { id = "rbxassetid://116062165012558", pitch = { 1.05, 1.35 } },
+}
 local SINK = 0.35 -- how far your feet sink into the top of a squishy
 local SQUISH_COOLDOWN = 0.35 -- seconds before the same squishy can squish again
 local FACE_TOWARDS = Vector3.new(-105.45, 0, 204.26) -- faces look towards the middle of the tower
@@ -78,6 +84,8 @@ local function finish()
 end
 
 local needoh = workspace:FindFirstChild("Needoh")
+local squishiesMade = 0 -- for taking turns between the squish and crunch sounds
+local soundCounts = { squish = 0, crunch = 0 }
 local rng = Random.new(5) -- the same seeds and sprinkles in every server
 
 -- Shapes ---------------------------------------------------------------------------
@@ -336,12 +344,18 @@ local function makeSquishy(platform: BasePart, info): Model
 	effects.Parent = body
 	effects.WorldPosition = Vector3.new(center.X, top - 0.2, center.Z)
 
+	squishiesMade += 1
+	local soundKind = info.sound or (if squishiesMade % 2 == 1 then "squish" else "crunch")
 	local sound = Instance.new("Sound")
 	sound.Name = "SquishSound"
-	sound.SoundId = SQUISH_SOUND
+	sound.SoundId = SOUNDS[soundKind].id
 	sound.Volume = 0.8
 	sound.RollOffMaxDistance = 60
+	sound:SetAttribute("PitchMin", SOUNDS[soundKind].pitch[1]) -- each squish is a slightly different pitch
+	sound:SetAttribute("PitchMax", SOUNDS[soundKind].pitch[2])
 	sound.Parent = effects
+	model:SetAttribute("Sound", soundKind)
+	soundCounts[soundKind] = (soundCounts[soundKind] or 0) + 1
 
 	local puff = Instance.new("ParticleEmitter")
 	puff.Name = "SquishPuff"
@@ -504,3 +518,4 @@ end
 
 lobbyFolder.Parent = workspace
 print(`[Squishies] Made {lobbyMade} squishies in the lobby: {describe(lobbyKinds)}`)
+print(`[Squishies] Sounds: {soundCounts.squish} squish, {soundCounts.crunch} crunch`)
