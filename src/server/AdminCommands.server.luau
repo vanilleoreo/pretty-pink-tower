@@ -1,5 +1,6 @@
 -- Admin commands for the owner of the game. Type them in the chat, starting with / (or ;),
 -- for example "/fly", "/speed 50" or "/bring bob". Type "/cmds" in the game to see them all.
+-- Admins also get an Admin button with a panel for all of them (AdminPanel.client.luau).
 --
 -- Only the owner can use them (and everyone in a Studio test, which is just you). To give a
 -- friend admin too, put their UserId in EXTRA_ADMINS. Other players can't see the commands,
@@ -49,6 +50,9 @@ messageEvent.Parent = remotes
 local announceEvent = Instance.new("RemoteEvent") -- (text, from) to everyone: big message on screen
 announceEvent.Name = "Announce"
 announceEvent.Parent = remotes
+local runEvent = Instance.new("RemoteEvent") -- (command name, words) from the admin panel
+runEvent.Name = "Run"
+runEvent.Parent = remotes
 remotes.Parent = ReplicatedStorage
 
 local function tell(player: Player, text: string)
@@ -448,6 +452,11 @@ command("give", "/give [name] coil|speed|carpet|boombox|laser", "give an item", 
 end)
 
 command("kick", "/kick name [reason]", "kick someone out of the game", function(speaker, args)
+	local who = (args[1] or ""):lower()
+	if who == "all" or who == "others" or who == "everyone" or who == "random" then
+		tell(speaker, "Pick one player to kick.") -- so nobody kicks the whole server by mistake
+		return
+	end
 	local targets = findPlayers(speaker, args[1])
 	if not args[1] or #targets == 0 then
 		tell(speaker, "Kick who? Type /kick and the start of their name.")
@@ -528,4 +537,38 @@ for name, info in COMMANDS do
 	end)
 end
 
-print(`[Admin] {#ORDER + 1} admin commands ready (type /cmds in the chat)`)
+-- The admin panel ------------------------------------------------------------------------
+
+-- Tell each player's screen whether they're an admin, so only admins get the panel
+local function markAdmin(player: Player)
+	player:SetAttribute("IsAdmin", isAdmin(player))
+end
+Players.PlayerAdded:Connect(markAdmin)
+for _, player in Players:GetPlayers() do
+	task.spawn(markAdmin, player)
+end
+
+-- A button in the panel was pressed. Check again that it's really an admin: never trust a
+-- player's screen on its own.
+runEvent.OnServerEvent:Connect(function(player, name, words)
+	if not isAdmin(player) or typeof(name) ~= "string" or not COMMANDS[name] then
+		return
+	end
+	local args = {}
+	if typeof(words) == "table" then
+		for index = 1, 10 do
+			local word = words[index]
+			if typeof(word) ~= "string" then
+				break
+			end
+			table.insert(args, word:sub(1, 200))
+		end
+	end
+	local ok, problem = pcall(COMMANDS[name].run, player, args)
+	if not ok then
+		warn(`[Admin] {name} didn't work: {problem}`)
+		tell(player, `{name} didn't work, sorry.`)
+	end
+end)
+
+print(`[Admin] {#ORDER + 1} admin commands ready (type /cmds in the chat, or use the Admin button)`)
