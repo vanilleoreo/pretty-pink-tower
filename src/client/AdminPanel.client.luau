@@ -1,4 +1,4 @@
--- The admin panel: an "Admin" button (only for the owner and other admins) that opens a panel
+-- The admin panel: a cute "Admin" button (only for the owner and other admins) that opens a panel
 -- with buttons for all the admin commands (AdminCommands.server.luau).
 --
 -- Pick who at the top (Me, All, Others or a player), then press a button. The number box is for
@@ -6,6 +6,7 @@
 -- checks every button press, so nobody else can use it even if they mess with their screen.
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local TweenService = game:GetService("TweenService")
 
 local player = Players.LocalPlayer
 
@@ -19,86 +20,97 @@ local runEvent = remotes:WaitForChild("Run") :: RemoteEvent
 local messageEvent = remotes:WaitForChild("Message") :: RemoteEvent
 
 local COLORS = {
-	Background = Color3.fromRGB(255, 235, 245),
+	Plum = Color3.fromRGB(110, 45, 85), -- writing
+	Muted = Color3.fromRGB(175, 125, 155),
 	Pink = Color3.fromRGB(255, 105, 180),
-	Text = Color3.fromRGB(110, 45, 85),
-	Muted = Color3.fromRGB(165, 115, 145),
+	HotPink = Color3.fromRGB(255, 80, 160),
+	SoftPink = Color3.fromRGB(255, 170, 215),
+	Blush = Color3.fromRGB(255, 238, 247),
+	Lavender = Color3.fromRGB(240, 230, 255),
 	White = Color3.new(1, 1, 1),
-	Danger = Color3.fromRGB(235, 80, 100),
-	Section = {
-		Moves = Color3.fromRGB(255, 120, 190),
-		Health = Color3.fromRGB(120, 200, 150),
-		Teleport = Color3.fromRGB(120, 170, 255),
-		Fun = Color3.fromRGB(190, 140, 255),
-		Give = Color3.fromRGB(255, 170, 90),
-		Server = Color3.fromRGB(150, 150, 175),
-	},
+	Danger = Color3.fromRGB(255, 160, 170),
+	DangerText = Color3.fromRGB(165, 30, 60),
+}
+local SECTION_COLORS = { -- { buttons, label }
+	Moves = { Color3.fromRGB(255, 190, 220), Color3.fromRGB(255, 110, 175) },
+	Health = { Color3.fromRGB(190, 240, 205), Color3.fromRGB(80, 185, 120) },
+	Teleport = { Color3.fromRGB(190, 215, 255), Color3.fromRGB(95, 145, 240) },
+	Fun = { Color3.fromRGB(222, 200, 255), Color3.fromRGB(155, 105, 240) },
+	Give = { Color3.fromRGB(255, 218, 180), Color3.fromRGB(240, 145, 65) },
+	Server = { Color3.fromRGB(222, 222, 236), Color3.fromRGB(135, 135, 170) },
 }
 local FONT = Enum.Font.FredokaOne
+local BOUNCE = TweenInfo.new(0.18, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
 
--- The buttons: { label, command, what it needs } in sections.
+-- The buttons: { label, command, what it needs, red?, item } in sections.
 -- needs: "who" = the picked player(s), "number" = also the number box, "message" = the message
 -- box, "item" = a fixed item to give, "nothing" = just the command
 local SECTIONS = {
 	{
 		name = "Moves",
+		emoji = "🏃",
 		buttons = {
-			{ "Fly", "fly", "who" },
-			{ "Stop flying", "unfly", "who" },
-			{ "Speed", "speed", "number" },
-			{ "Jump", "jump", "number" },
-			{ "Size", "size", "number" },
-			{ "Normal", "normal", "who" },
+			{ "🕊️ Fly", "fly", "who" },
+			{ "🛬 Land", "unfly", "who" },
+			{ "⚡ Speed", "speed", "number" },
+			{ "🦘 Jump", "jump", "number" },
+			{ "🍄 Size", "size", "number" },
+			{ "🙂 Normal", "normal", "who" },
 		},
 	},
 	{
 		name = "Health",
+		emoji = "💖",
 		buttons = {
-			{ "God mode", "god", "who" },
-			{ "God off", "ungod", "who" },
-			{ "Heal", "heal", "who" },
-			{ "Respawn", "respawn", "who" },
-			{ "Kill", "kill", "who", true },
+			{ "🛡️ God mode", "god", "who" },
+			{ "🫧 God off", "ungod", "who" },
+			{ "💖 Heal", "heal", "who" },
+			{ "🔄 Respawn", "respawn", "who" },
+			{ "💥 Kill", "kill", "who", true },
 		},
 	},
 	{
 		name = "Teleport",
+		emoji = "🌀",
 		buttons = {
-			{ "Go to them", "to", "who" },
-			{ "Bring them", "bring", "who" },
-			{ "To the sofa", "sofa", "who" },
-			{ "To the lobby", "lobby", "who" },
-			{ "To the tower", "tower", "who" },
+			{ "👣 Go to them", "to", "who" },
+			{ "🧲 Bring them", "bring", "who" },
+			{ "🛋️ Sofa", "sofa", "who" },
+			{ "🏠 Lobby", "lobby", "who" },
+			{ "🗼 Tower", "tower", "who" },
 		},
 	},
 	{
 		name = "Fun",
+		emoji = "🎀",
 		buttons = {
-			{ "Freeze", "freeze", "who" },
-			{ "Unfreeze", "unfreeze", "who" },
-			{ "Invisible", "invisible", "who" },
-			{ "Visible", "visible", "who" },
-			{ "Sparkles", "sparkles", "who" },
-			{ "No sparkles", "unsparkles", "who" },
-			{ "Day", "day", "nothing" },
-			{ "Night", "night", "nothing" },
+			{ "🧊 Freeze", "freeze", "who" },
+			{ "🔥 Unfreeze", "unfreeze", "who" },
+			{ "👻 Invisible", "invisible", "who" },
+			{ "👀 Visible", "visible", "who" },
+			{ "✨ Sparkles", "sparkles", "who" },
+			{ "🚫 No sparkles", "unsparkles", "who" },
+			{ "☀️ Day", "day", "nothing" },
+			{ "🌙 Night", "night", "nothing" },
 		},
 	},
 	{
 		name = "Give",
+		emoji = "🎁",
 		buttons = {
-			{ "Gravity coil", "give", "item", false, "coil" },
-			{ "Speed coil", "give", "item", false, "speed" },
-			{ "Magic carpet", "give", "item", false, "carpet" },
-			{ "Boombox", "give", "item", false, "boombox" },
-			{ "Laser gun", "give", "item", false, "laser" },
+			{ "🌀 Gravity coil", "give", "item", false, "coil" },
+			{ "⚡ Speed coil", "give", "item", false, "speed" },
+			{ "🌈 Carpet", "give", "item", false, "carpet" },
+			{ "📻 Boombox", "give", "item", false, "boombox" },
+			{ "🔫 Laser gun", "give", "item", false, "laser" },
 		},
 	},
 	{
 		name = "Server",
+		emoji = "📢",
 		buttons = {
-			{ "Announce", "announce", "message" },
-			{ "Kick", "kick", "message", true },
+			{ "📢 Announce", "announce", "message" },
+			{ "👢 Kick", "kick", "message", true },
 		},
 	},
 }
@@ -120,83 +132,188 @@ local function corner(radius: number)
 	return make("UICorner", { CornerRadius = UDim.new(0, radius) })
 end
 
+local function gradient(top: Color3, bottom: Color3, rotation: number?)
+	return make("UIGradient", { Color = ColorSequence.new(top, bottom), Rotation = rotation or 90 })
+end
+
+-- A button with a shiny gradient behind its writing. (A gradient on the button itself would tint
+-- the writing and the emojis too, so it goes on a background layer instead.)
+local function shinyButton(
+	props: { [string]: any },
+	top: Color3,
+	bottom: Color3,
+	radius: number,
+	text: { [string]: any },
+	strokeThickness: number?
+): TextButton
+	local rotation = props.GradientRotation -- (not a real button setting, so take it out)
+	props.GradientRotation = nil
+	props.Text = ""
+	props.BackgroundTransparency = 1
+	props.AutoButtonColor = false
+	local button = make("TextButton", props)
+	make("Frame", {
+		Name = "Fill",
+		Size = UDim2.fromScale(1, 1),
+		BackgroundColor3 = COLORS.White,
+		ZIndex = 1,
+	}, {
+		corner(radius),
+		gradient(top, bottom, rotation),
+		make("UIStroke", {
+			Color = COLORS.White,
+			Thickness = strokeThickness or 2,
+			ApplyStrokeMode = Enum.ApplyStrokeMode.Border,
+		}),
+	}).Parent = button
+	text.Name = "Label"
+	text.Size = UDim2.fromScale(1, 1)
+	text.BackgroundTransparency = 1
+	text.ZIndex = 2
+	text.Font = FONT
+	make("TextLabel", text, {
+		make("UIPadding", { PaddingLeft = UDim.new(0, 6), PaddingRight = UDim.new(0, 6) }),
+	}).Parent = button
+	return button
+end
+
+-- Grows a little when you point at it and squishes when you press it
+local function bouncy(button: GuiButton)
+	local scale = make("UIScale", {})
+	scale.Parent = button
+	button.MouseEnter:Connect(function()
+		TweenService:Create(scale, BOUNCE, { Scale = 1.06 }):Play()
+	end)
+	button.MouseLeave:Connect(function()
+		TweenService:Create(scale, BOUNCE, { Scale = 1 }):Play()
+	end)
+	button.Activated:Connect(function()
+		scale.Scale = 0.9
+		TweenService:Create(scale, BOUNCE, { Scale = 1 }):Play()
+	end)
+end
+
 -- The screen -------------------------------------------------------------------------
 
 local gui = make("ScreenGui", { Name = "AdminPanel", ResetOnSpawn = false, ZIndexBehavior = Enum.ZIndexBehavior.Sibling })
 
-local openButton = make("TextButton", {
+local openButton = shinyButton({
 	Name = "OpenAdmin",
 	AnchorPoint = Vector2.new(0, 0.5),
 	Position = UDim2.new(0, 12, 0.5, 112), -- under the Shop and Donate buttons
 	Size = UDim2.fromOffset(120, 46),
-	BackgroundColor3 = COLORS.Text,
-	Font = FONT,
+	GradientRotation = 0,
+}, Color3.fromRGB(255, 140, 200), Color3.fromRGB(190, 130, 255), 23, {
 	Text = "👑 Admin",
 	TextSize = 24,
 	TextColor3 = COLORS.White,
-}, {
-	corner(14),
-	make("UIStroke", { Color = COLORS.Pink, Thickness = 2, ApplyStrokeMode = Enum.ApplyStrokeMode.Border }),
-})
+	TextStrokeColor3 = COLORS.HotPink,
+	TextStrokeTransparency = 0.4,
+}, 3)
+bouncy(openButton)
 openButton.Parent = gui
 
-local panel = make("Frame", {
-	Name = "Panel",
+-- The window: a soft shadow behind the panel, both inside a frame that pops open
+local window = make("Frame", {
+	Name = "Window",
 	Visible = false,
 	AnchorPoint = Vector2.new(0.5, 0.5),
 	Position = UDim2.fromScale(0.5, 0.5),
 	Size = UDim2.fromScale(0.94, 0.86),
-	BackgroundColor3 = COLORS.Background,
+	BackgroundTransparency = 1,
 }, {
-	corner(18),
-	make("UIStroke", { Color = COLORS.Pink, Thickness = 3 }),
-	make("UISizeConstraint", { MaxSize = Vector2.new(580, 500) }),
+	make("UISizeConstraint", { MaxSize = Vector2.new(580, 520) }),
+})
+local windowScale = make("UIScale", {})
+windowScale.Parent = window
+window.Parent = gui
+
+make("Frame", {
+	Name = "Shadow",
+	Position = UDim2.fromOffset(6, 8),
+	Size = UDim2.fromScale(1, 1),
+	BackgroundColor3 = COLORS.Pink,
+	BackgroundTransparency = 0.78,
+}, { corner(26) }).Parent = window
+
+local panel = make("Frame", {
+	Name = "Panel",
+	Size = UDim2.fromScale(1, 1),
+	BackgroundColor3 = COLORS.White,
+}, {
+	corner(26),
+	gradient(COLORS.Blush, COLORS.Lavender),
+	make("UIStroke", { Color = COLORS.White, Thickness = 4 }),
+})
+panel.Parent = window
+
+-- A pink banner with the title
+local header = make("Frame", {
+	Name = "Header",
+	Position = UDim2.fromOffset(10, 10),
+	Size = UDim2.new(1, -20, 0, 52),
+	BackgroundColor3 = COLORS.White,
+}, {
+	corner(20),
+	gradient(Color3.fromRGB(255, 120, 190), Color3.fromRGB(255, 175, 215), 0),
 	make("TextLabel", {
-		Name = "Title",
-		Position = UDim2.fromOffset(16, 8),
-		Size = UDim2.new(1, -70, 0, 38),
+		Position = UDim2.fromOffset(16, 0),
+		Size = UDim2.new(1, -70, 1, 0),
 		BackgroundTransparency = 1,
 		Font = FONT,
-		Text = "Admin 👑",
-		TextSize = 30,
-		TextColor3 = COLORS.Pink,
+		Text = "👑 Admin Panel",
+		TextSize = 28,
+		TextColor3 = COLORS.White,
+		TextStrokeColor3 = COLORS.HotPink,
+		TextStrokeTransparency = 0.5,
 		TextXAlignment = Enum.TextXAlignment.Left,
 	}),
+	make("TextLabel", { -- little decorations
+		AnchorPoint = Vector2.new(1, 0.5),
+		Position = UDim2.new(1, -54, 0.5, 0),
+		Size = UDim2.fromOffset(90, 30),
+		BackgroundTransparency = 1,
+		Font = FONT,
+		Text = "🌸 ✨ 💗",
+		TextSize = 18,
+		TextXAlignment = Enum.TextXAlignment.Right,
+	}),
 })
-panel.Parent = gui
+header.Parent = panel
 
 local closeButton = make("TextButton", {
-	AnchorPoint = Vector2.new(1, 0),
-	Position = UDim2.new(1, -10, 0, 10),
+	AnchorPoint = Vector2.new(1, 0.5),
+	Position = UDim2.new(1, -10, 0.5, 0),
 	Size = UDim2.fromOffset(34, 34),
-	BackgroundColor3 = COLORS.Pink,
+	BackgroundColor3 = COLORS.White,
 	Font = FONT,
-	Text = "X",
-	TextSize = 20,
-	TextColor3 = COLORS.White,
+	Text = "✕",
+	TextSize = 18,
+	TextColor3 = COLORS.HotPink,
 }, { corner(17) })
-closeButton.Parent = panel
+bouncy(closeButton)
+closeButton.Parent = header
 
--- Who: Me, All, Others and every player -------------------------------------------------
+-- Who: Me, All, Others and every player (with their avatar face) ------------------------------
 
 make("TextLabel", {
-	Position = UDim2.fromOffset(16, 52),
-	Size = UDim2.fromOffset(46, 34),
+	Position = UDim2.fromOffset(18, 70),
+	Size = UDim2.fromOffset(50, 36),
 	BackgroundTransparency = 1,
 	Font = FONT,
-	Text = "Who:",
+	Text = "Who?",
 	TextSize = 18,
-	TextColor3 = COLORS.Text,
+	TextColor3 = COLORS.Plum,
 	TextXAlignment = Enum.TextXAlignment.Left,
 }).Parent = panel
 
 local whoList = make("ScrollingFrame", {
-	Position = UDim2.fromOffset(64, 50),
-	Size = UDim2.new(1, -76, 0, 40),
+	Position = UDim2.fromOffset(68, 68),
+	Size = UDim2.new(1, -80, 0, 42),
 	BackgroundTransparency = 1,
 	BorderSizePixel = 0,
 	ScrollBarThickness = 4,
-	ScrollBarImageColor3 = COLORS.Pink,
+	ScrollBarImageColor3 = COLORS.SoftPink,
 	ScrollingDirection = Enum.ScrollingDirection.X,
 	CanvasSize = UDim2.new(),
 	AutomaticCanvasSize = Enum.AutomaticSize.X,
@@ -207,6 +324,7 @@ local whoList = make("ScrollingFrame", {
 		SortOrder = Enum.SortOrder.LayoutOrder,
 		VerticalAlignment = Enum.VerticalAlignment.Center,
 	}),
+	make("UIPadding", { PaddingLeft = UDim.new(0, 2), PaddingRight = UDim.new(0, 4) }),
 })
 whoList.Parent = panel
 
@@ -221,22 +339,49 @@ local function paintChips()
 	end
 end
 
-local function addChip(word: string, label: string, order: number)
+local function addChip(word: string, label: string, order: number, userId: number?)
 	local chip = make("TextButton", {
 		Name = word,
 		LayoutOrder = order,
-		Size = UDim2.fromOffset(0, 32),
+		Size = UDim2.fromOffset(0, 34),
 		AutomaticSize = Enum.AutomaticSize.X,
 		BackgroundColor3 = COLORS.White,
 		Font = FONT,
 		Text = label,
 		TextSize = 17,
 		TextColor3 = COLORS.Pink,
+		TextXAlignment = Enum.TextXAlignment.Right,
 	}, {
-		corner(16),
-		make("UIStroke", { Color = COLORS.Pink, Thickness = 2, ApplyStrokeMode = Enum.ApplyStrokeMode.Border }),
-		make("UIPadding", { PaddingLeft = UDim.new(0, 12), PaddingRight = UDim.new(0, 12) }),
+		corner(17),
+		make("UIStroke", { Color = COLORS.SoftPink, Thickness = 2, ApplyStrokeMode = Enum.ApplyStrokeMode.Border }),
+		make("UIPadding", {
+			PaddingLeft = UDim.new(0, if userId then 36 else 12),
+			PaddingRight = UDim.new(0, 12),
+		}),
 	})
+	if userId then
+		-- their avatar's face in a little circle
+		local face = make("ImageLabel", {
+			AnchorPoint = Vector2.new(0, 0.5),
+			Position = UDim2.new(0, -32, 0.5, 0),
+			Size = UDim2.fromOffset(26, 26),
+			BackgroundColor3 = COLORS.Blush,
+		}, { corner(13) })
+		face.Parent = chip
+		task.spawn(function()
+			local ok, image = pcall(
+				Players.GetUserThumbnailAsync,
+				Players,
+				userId,
+				Enum.ThumbnailType.HeadShot,
+				Enum.ThumbnailSize.Size48x48
+			)
+			if ok then
+				face.Image = image
+			end
+		end)
+	end
+	bouncy(chip)
 	chip.Activated:Connect(function()
 		picked = word
 		paintChips()
@@ -246,13 +391,13 @@ local function addChip(word: string, label: string, order: number)
 	paintChips()
 end
 
-addChip("me", "Me", 1)
-addChip("all", "All", 2)
-addChip("others", "Others", 3)
+addChip("me", "🙋 Me", 1)
+addChip("all", "🌍 All", 2)
+addChip("others", "👯 Others", 3)
 
 local function addPlayer(other: Player)
 	if other ~= player then
-		addChip(other.Name, other.DisplayName, 10)
+		addChip(other.Name, other.DisplayName, 10, other.UserId)
 	end
 end
 local function removePlayer(other: Player)
@@ -284,49 +429,65 @@ local function box(placeholder: string, position: UDim2, size: UDim2): TextBox
 		PlaceholderColor3 = COLORS.Muted,
 		Text = "",
 		TextSize = 16,
-		TextColor3 = COLORS.Text,
+		TextColor3 = COLORS.Plum,
 		ClearTextOnFocus = false,
 		TextTruncate = Enum.TextTruncate.AtEnd,
 	}, {
-		corner(10),
-		make("UIStroke", { Color = COLORS.Pink, Thickness = 2, ApplyStrokeMode = Enum.ApplyStrokeMode.Border }),
-		make("UIPadding", { PaddingLeft = UDim.new(0, 10), PaddingRight = UDim.new(0, 10) }),
+		corner(18),
+		make("UIStroke", { Color = COLORS.SoftPink, Thickness = 2, ApplyStrokeMode = Enum.ApplyStrokeMode.Border }),
+		make("UIPadding", { PaddingLeft = UDim.new(0, 12), PaddingRight = UDim.new(0, 12) }),
 	})
 	textBox.Parent = panel
 	return textBox
 end
 
-local numberBox = box("Number (speed, jump, size)", UDim2.fromOffset(16, 98), UDim2.new(0.38, -20, 0, 36))
-local messageBox = box("Message (announce, kick reason)", UDim2.new(0.38, 6, 0, 98), UDim2.new(0.62, -22, 0, 36))
+local numberBox = box("🔢 Number (speed, jump, size)", UDim2.fromOffset(16, 118), UDim2.new(0.4, -20, 0, 36))
+local messageBox = box("💌 Message (announce, kick reason)", UDim2.new(0.4, 6, 0, 118), UDim2.new(0.6, -22, 0, 36))
 
--- The command buttons ----------------------------------------------------------------------
+-- What happened, in a little speech bubble at the bottom --------------------------------------
 
+local statusBubble = make("Frame", {
+	AnchorPoint = Vector2.new(0.5, 1),
+	Position = UDim2.new(0.5, 0, 1, -10),
+	Size = UDim2.new(1, -32, 0, 30),
+	BackgroundColor3 = COLORS.White,
+}, {
+	corner(15),
+	make("UIStroke", { Color = COLORS.SoftPink, Thickness = 2 }),
+})
+statusBubble.Parent = panel
 local status = make("TextLabel", {
-	AnchorPoint = Vector2.new(0, 1),
-	Position = UDim2.new(0, 16, 1, -8),
-	Size = UDim2.new(1, -32, 0, 24),
+	Position = UDim2.fromOffset(12, 0),
+	Size = UDim2.new(1, -24, 1, 0),
 	BackgroundTransparency = 1,
 	Font = FONT,
-	Text = "Pick who, then press a button",
+	Text = "💬 Pick who, then press a button!",
 	TextSize = 15,
-	TextColor3 = COLORS.Muted,
+	TextColor3 = COLORS.Plum,
 	TextXAlignment = Enum.TextXAlignment.Left,
 	TextTruncate = Enum.TextTruncate.AtEnd,
 })
-status.Parent = panel
+status.Parent = statusBubble
+
+-- The command buttons ----------------------------------------------------------------------
 
 local list = make("ScrollingFrame", {
-	Position = UDim2.fromOffset(12, 144),
-	Size = UDim2.new(1, -24, 1, -180),
+	Position = UDim2.fromOffset(12, 164),
+	Size = UDim2.new(1, -24, 1, -212),
 	BackgroundTransparency = 1,
 	BorderSizePixel = 0,
 	ScrollBarThickness = 6,
-	ScrollBarImageColor3 = COLORS.Pink,
+	ScrollBarImageColor3 = COLORS.SoftPink,
 	CanvasSize = UDim2.new(),
 	AutomaticCanvasSize = Enum.AutomaticSize.Y,
 }, {
-	make("UIListLayout", { Padding = UDim.new(0, 8), SortOrder = Enum.SortOrder.LayoutOrder }),
-	make("UIPadding", { PaddingRight = UDim.new(0, 8) }),
+	make("UIListLayout", { Padding = UDim.new(0, 10), SortOrder = Enum.SortOrder.LayoutOrder }),
+	make("UIPadding", {
+		PaddingLeft = UDim.new(0, 4),
+		PaddingRight = UDim.new(0, 10),
+		PaddingTop = UDim.new(0, 4),
+		PaddingBottom = UDim.new(0, 8),
+	}),
 })
 list.Parent = panel
 
@@ -343,24 +504,24 @@ local function press(command: string, needs: string, item: string?)
 		local message = messageBox.Text
 		if command == "announce" then
 			if message == "" then
-				status.Text = "Write your message in the message box first"
+				status.Text = "💌 Write your message in the message box first"
 				return
 			end
 			words = { message }
 		elseif command == "kick" then
 			if picked == "me" or picked == "all" or picked == "others" then
-				status.Text = "Pick one player at the top to kick"
+				status.Text = "👆 Pick one player at the top to kick"
 				return
 			end
 			words = { picked, message }
 		end
 	end
-	status.Text = "..."
+	status.Text = "💭 ..."
 	runEvent:FireServer(command, words)
 end
 
 for order, section in SECTIONS do
-	local color = COLORS.Section[section.name]
+	local buttonColor, labelColor = SECTION_COLORS[section.name][1], SECTION_COLORS[section.name][2]
 	local holder = make("Frame", {
 		Name = section.name,
 		LayoutOrder = order,
@@ -368,16 +529,19 @@ for order, section in SECTIONS do
 		AutomaticSize = Enum.AutomaticSize.Y,
 		BackgroundTransparency = 1,
 	}, {
-		make("UIListLayout", { Padding = UDim.new(0, 4), SortOrder = Enum.SortOrder.LayoutOrder }),
-		make("TextLabel", {
+		make("UIListLayout", { Padding = UDim.new(0, 6), SortOrder = Enum.SortOrder.LayoutOrder }),
+		make("TextLabel", { -- a coloured pill with the section's name
 			LayoutOrder = 1,
-			Size = UDim2.new(1, 0, 0, 22),
-			BackgroundTransparency = 1,
+			Size = UDim2.fromOffset(0, 26),
+			AutomaticSize = Enum.AutomaticSize.X,
+			BackgroundColor3 = labelColor,
 			Font = FONT,
-			Text = section.name,
-			TextSize = 18,
-			TextColor3 = color,
-			TextXAlignment = Enum.TextXAlignment.Left,
+			Text = `{section.emoji} {section.name}`,
+			TextSize = 16,
+			TextColor3 = COLORS.White,
+		}, {
+			corner(13),
+			make("UIPadding", { PaddingLeft = UDim.new(0, 12), PaddingRight = UDim.new(0, 12) }),
 		}),
 	})
 	local grid = make("Frame", {
@@ -387,7 +551,7 @@ for order, section in SECTIONS do
 		BackgroundTransparency = 1,
 	}, {
 		make("UIGridLayout", {
-			CellSize = UDim2.new(1 / 3, -6, 0, 38),
+			CellSize = UDim2.new(1 / 3, -6, 0, 40),
 			CellPadding = UDim2.fromOffset(6, 6),
 			SortOrder = Enum.SortOrder.LayoutOrder,
 		}),
@@ -396,18 +560,14 @@ for order, section in SECTIONS do
 
 	for index, button in section.buttons do
 		local label, command, needs, danger, item = button[1], button[2], button[3], button[4], button[5]
-		local commandButton = make("TextButton", {
-			LayoutOrder = index,
-			BackgroundColor3 = if danger then COLORS.Danger else color,
-			Font = FONT,
+		local color = if danger then COLORS.Danger else buttonColor
+		local commandButton = shinyButton({ LayoutOrder = index }, color:Lerp(COLORS.White, 0.35), color, 14, {
 			Text = label,
 			TextScaled = true,
-			TextColor3 = COLORS.White,
-		}, {
-			corner(10),
-			make("UITextSizeConstraint", { MaxTextSize = 18 }),
-			make("UIPadding", { PaddingLeft = UDim.new(0, 6), PaddingRight = UDim.new(0, 6) }),
+			TextColor3 = if danger then COLORS.DangerText else COLORS.Plum,
 		})
+		make("UITextSizeConstraint", { MaxTextSize = 17 }).Parent = commandButton:FindFirstChild("Label")
+		bouncy(commandButton)
 		commandButton.Activated:Connect(function()
 			press(command, needs, item)
 		end)
@@ -418,16 +578,30 @@ end
 
 -- What happened (the same replies that show up in the chat)
 messageEvent.OnClientEvent:Connect(function(text: string)
-	status.Text = string.match(text, "[^\n]+") or text
+	status.Text = "✨ " .. (string.match(text, "[^\n]+") or text)
 end)
 
--- Opening and closing -------------------------------------------------------------------------
+-- Opening and closing, with a little pop ---------------------------------------------------
+
+local function setOpen(open: boolean)
+	if open then
+		window.Visible = true
+		windowScale.Scale = 0.8
+		TweenService:Create(windowScale, TweenInfo.new(0.25, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1 })
+			:Play()
+	else
+		local shrink = TweenService:Create(windowScale, TweenInfo.new(0.12, Enum.EasingStyle.Quad), { Scale = 0.85 })
+		shrink:Play()
+		shrink.Completed:Wait()
+		window.Visible = false
+	end
+end
 
 openButton.Activated:Connect(function()
-	panel.Visible = not panel.Visible
+	setOpen(not window.Visible)
 end)
 closeButton.Activated:Connect(function()
-	panel.Visible = false
+	setOpen(false)
 end)
 
 gui.Parent = player:WaitForChild("PlayerGui")
