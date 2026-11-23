@@ -18,7 +18,7 @@ local CONFIG = {
 	HOLD_TIME = 0.15,
 	VELOCITY_PADDING = 1.2,
 	SOUND_COOLDOWN = 0.03,
-	PRESS_DEPTH = 1.4,
+	PRESS_DEPTH = 1.4, -- keys can have their own "PressDepth" attribute instead (the tower ones sink less)
 	VOLUME = 1,
 }
 
@@ -89,7 +89,13 @@ RunService.RenderStepped:Connect(function(deltaTime)
 		for _, part in detectedParts do
 			local state = keyStates[part]
 			if not state then
-				state = { currentAlpha = 0, targetAlpha = 0, lastHit = 0, originalCF = part.CFrame }
+				state = {
+					currentAlpha = 0,
+					targetAlpha = 0,
+					lastHit = 0,
+					originalCF = part.CFrame,
+					depth = part:GetAttribute("PressDepth") or CONFIG.PRESS_DEPTH,
+				}
 				keyStates[part] = state
 			end
 
@@ -130,7 +136,7 @@ RunService.RenderStepped:Connect(function(deltaTime)
 			nextCFrame = state.originalCF
 			activeKeys[part] = nil
 		else
-			nextCFrame = state.originalCF * CFrame.new(0, -state.currentAlpha * CONFIG.PRESS_DEPTH, 0)
+			nextCFrame = state.originalCF * CFrame.new(0, -state.currentAlpha * state.depth, 0)
 		end
 
 		table.insert(partsToMove, part)
