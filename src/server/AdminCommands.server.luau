@@ -53,6 +53,12 @@ announceEvent.Parent = remotes
 local runEvent = Instance.new("RemoteEvent") -- (command name, words) from the admin panel
 runEvent.Name = "Run"
 runEvent.Parent = remotes
+local landEvent = Instance.new("RemoteEvent") -- from anyone who's flying: "let me land"
+landEvent.Name = "Land"
+landEvent.Parent = remotes
+local confettiEvent = Instance.new("RemoteEvent") -- to everyone: confetti on the screen
+confettiEvent.Name = "Confetti"
+confettiEvent.Parent = remotes
 remotes.Parent = ReplicatedStorage
 
 local function tell(player: Player, text: string)
@@ -186,10 +192,11 @@ command("fly", "/fly [name]", "fly where your camera looks (Space up, Ctrl or Q 
 	tell(speaker, `Flying: {names(targets)}`)
 end)
 
-command("unfly", "/unfly [name]", "stop flying", function(speaker, args)
+command("unfly", "/unfly [name]", "stop flying (or press F, or the Land button)", function(speaker, args)
 	local targets = findPlayers(speaker, args[1])
 	for _, player in targets do
 		player:SetAttribute("AdminFlying", false)
+		player:SetAttribute("AdminNoclip", false)
 	end
 	tell(speaker, `Stopped flying: {names(targets)}`)
 end)
@@ -213,15 +220,7 @@ command("jump", "/jump [name] [number]", "jump power (normal is 50)", function(s
 	tell(speaker, `Jump {power}: {names(targets)}`)
 end)
 
-command("normal", "/normal [name]", "normal speed and jump again", function(speaker, args)
-	local targets = findPlayers(speaker, args[1])
-	eachHumanoid(targets, function(humanoid)
-		humanoid.WalkSpeed = 16
-		humanoid.UseJumpPower = true
-		humanoid.JumpPower = 50
-	end)
-	tell(speaker, `Back to normal: {names(targets)}`)
-end)
+-- (/normal is further down: it turns every power off, so it needs them all)
 
 command("god", "/god [name]", "can't get hurt", function(speaker, args)
 	local targets = findPlayers(speaker, args[1])
@@ -497,6 +496,260 @@ end)
 command("night", "/night", "night time", function(speaker)
 	Lighting.ClockTime = 0
 	tell(speaker, "It's night time")
+end)
+
+-- More powers -----------------------------------------------------------------------------
+
+-- Powers that the player's own screen does (AdminCommands.client.luau), switched on and off
+-- with an attribute on the player
+local function screenPower(name: string, usage: string, help: string, attribute: string, on: boolean, done: string)
+	command(name, usage, help, function(speaker, args)
+		local targets = findPlayers(speaker, args[1])
+		for _, player in targets do
+			player:SetAttribute(attribute, on)
+			if attribute == "AdminNoclip" and on then
+				player:SetAttribute("AdminFlying", true) -- noclip flies through walls
+			end
+		end
+		tell(speaker, `{done}: {names(targets)}`)
+	end)
+end
+
+screenPower("noclip", "/noclip [name]", "fly through walls", "AdminNoclip", true, "Noclip")
+screenPower("clip", "/clip [name]", "stop going through walls", "AdminNoclip", false, "Solid again")
+screenPower("infjump", "/infjump [name]", "jump again in the air, forever", "AdminInfJump", true, "Air jumps")
+screenPower("uninfjump", "/uninfjump [name]", "normal jumping", "AdminInfJump", false, "No more air jumps")
+screenPower("clicktp", "/clicktp [name]", "Ctrl + click somewhere to teleport there", "AdminClickTP", true, "Click teleport")
+screenPower("unclicktp", "/unclicktp [name]", "no more click teleport", "AdminClickTP", false, "Click teleport off")
+
+-- Something stuck to a player's HumanoidRootPart (a trail, fire, a spin...): add or remove it
+local function rootPower(
+	name: string,
+	usage: string,
+	help: string,
+	done: string,
+	add: ((root: BasePart, humanoid: Humanoid?) -> ())?,
+	itemName: string
+)
+	command(name, usage, help, function(speaker, args)
+		local targets = findPlayers(speaker, args[1])
+		for _, player in targets do
+			local humanoid, root = parts(player)
+			if not root then
+				continue
+			end
+			if add then
+				if not root:FindFirstChild(itemName) then
+					add(root, humanoid)
+				end
+			else
+				for _, child in root:GetChildren() do
+					if child.Name == itemName or child.Name == itemName .. "Attachment" then
+						child:Destroy()
+					end
+				end
+				if itemName == "AdminSpin" and humanoid then
+					humanoid.AutoRotate = true
+				end
+			end
+		end
+		tell(speaker, `{done}: {names(targets)}`)
+	end)
+end
+
+rootPower("trail", "/trail [name]", "a pink trail behind you", "Trail", function(root)
+	local top = Instance.new("Attachment")
+	top.Name = "AdminTrailAttachment"
+	top.Position = Vector3.new(0, 1.2, 0)
+	top.Parent = root
+	local bottom = Instance.new("Attachment")
+	bottom.Name = "AdminTrailAttachment"
+	bottom.Position = Vector3.new(0, -1.2, 0)
+	bottom.Parent = root
+	local trail = Instance.new("Trail")
+	trail.Name = "AdminTrail"
+	trail.Attachment0 = top
+	trail.Attachment1 = bottom
+	trail.Color = ColorSequence.new({
+		ColorSequenceKeypoint.new(0, Color3.fromRGB(255, 105, 180)),
+		ColorSequenceKeypoint.new(0.5, Color3.fromRGB(200, 140, 255)),
+		ColorSequenceKeypoint.new(1, Color3.fromRGB(130, 200, 255)),
+	})
+	trail.Transparency = NumberSequence.new(0.15, 1)
+	trail.Lifetime = 0.7
+	trail.LightEmission = 0.4
+	trail.Parent = root
+end, "AdminTrail")
+rootPower("untrail", "/untrail [name]", "no more trail", "Trail off", nil, "AdminTrail")
+
+rootPower("fire", "/fire [name]", "pink fire (it doesn't hurt)", "Fire", function(root)
+	local fire = Instance.new("Fire")
+	fire.Name = "AdminFire"
+	fire.Color = Color3.fromRGB(255, 105, 180)
+	fire.SecondaryColor = Color3.fromRGB(255, 225, 240)
+	fire.Size = 6
+	fire.Parent = root
+end, "AdminFire")
+rootPower("unfire", "/unfire [name]", "put the fire out", "Fire out", nil, "AdminFire")
+
+rootPower("spin", "/spin [name]", "spin around and around", "Spinning", function(root, humanoid)
+	local attachment = Instance.new("Attachment")
+	attachment.Name = "AdminSpinAttachment"
+	attachment.Parent = root
+	local spin = Instance.new("AngularVelocity")
+	spin.Name = "AdminSpin"
+	spin.Attachment0 = attachment
+	spin.MaxTorque = math.huge
+	spin.AngularVelocity = Vector3.new(0, 12, 0)
+	spin.RelativeTo = Enum.ActuatorRelativeTo.World
+	spin.Parent = root
+	if humanoid then
+		humanoid.AutoRotate = false -- otherwise walking turns you back
+	end
+end, "AdminSpin")
+rootPower("unspin", "/unspin [name]", "stop spinning", "Stopped spinning", nil, "AdminSpin")
+
+command("shield", "/shield [name]", "a bubble shield you can see (can't get hurt)", function(speaker, args)
+	local targets = findPlayers(speaker, args[1])
+	for _, player in targets do
+		local character = player.Character
+		if character and not character:FindFirstChild("AdminShield") then
+			local shield = Instance.new("ForceField")
+			shield.Name = "AdminShield"
+			shield.Visible = true
+			shield.Parent = character
+		end
+	end
+	tell(speaker, `Shield: {names(targets)}`)
+end)
+
+command("unshield", "/unshield [name]", "no more shield", function(speaker, args)
+	local targets = findPlayers(speaker, args[1])
+	for _, player in targets do
+		local shield = player.Character and player.Character:FindFirstChild("AdminShield")
+		if shield then
+			shield:Destroy()
+		end
+	end
+	tell(speaker, `Shield off: {names(targets)}`)
+end)
+
+-- Rainbow: the body changes colour all the time
+local rainbows: { [Player]: boolean } = {}
+local function setRainbow(player: Player, on: boolean)
+	if on then
+		if rainbows[player] then
+			return
+		end
+		rainbows[player] = true
+		task.spawn(function()
+			local hue = 0
+			while rainbows[player] and player.Parent do
+				local character = player.Character
+				if character then
+					hue = (hue + 0.03) % 1
+					local color = Color3.fromHSV(hue, 0.5, 1)
+					for _, part in character:GetChildren() do
+						if part:IsA("BasePart") and part.Name ~= "HumanoidRootPart" then
+							if part:GetAttribute("AdminColor") == nil then
+								part:SetAttribute("AdminColor", part.Color) -- to put it back later
+							end
+							part.Color = color
+						end
+					end
+				end
+				task.wait(0.1)
+			end
+		end)
+	else
+		rainbows[player] = nil
+		local character = player.Character
+		if character then
+			for _, part in character:GetChildren() do
+				local was = part:GetAttribute("AdminColor")
+				if part:IsA("BasePart") and typeof(was) == "Color3" then
+					part.Color = was
+					part:SetAttribute("AdminColor", nil)
+				end
+			end
+		end
+	end
+end
+Players.PlayerRemoving:Connect(function(player)
+	rainbows[player] = nil
+end)
+
+command("rainbow", "/rainbow [name]", "rainbow colours", function(speaker, args)
+	local targets = findPlayers(speaker, args[1])
+	for _, player in targets do
+		setRainbow(player, true)
+	end
+	tell(speaker, `Rainbow: {names(targets)}`)
+end)
+
+command("unrainbow", "/unrainbow [name]", "normal colours again", function(speaker, args)
+	local targets = findPlayers(speaker, args[1])
+	for _, player in targets do
+		setRainbow(player, false)
+	end
+	tell(speaker, `Colours back: {names(targets)}`)
+end)
+
+command("gravity", "/gravity [number]", "gravity for everyone (normal is 196, the moon is about 50)", function(speaker, args)
+	local gravity = math.clamp(tonumber(args[1]) or 50, 0, 1000)
+	workspace.Gravity = gravity
+	tell(speaker, `Gravity is {gravity}{if gravity < 100 then " (moon jumps!)" else ""}`)
+end)
+
+command("confetti", "/confetti", "confetti on everyone's screen", function(speaker)
+	confettiEvent:FireAllClients()
+	tell(speaker, "Confetti!")
+end)
+
+-- /normal: everything back to normal, every power off
+command("normal", "/normal [name]", "everything back to normal (all powers off)", function(speaker, args)
+	local targets = findPlayers(speaker, args[1])
+	for _, player in targets do
+		for _, attribute in { "AdminFlying", "AdminNoclip", "AdminInfJump", "AdminClickTP" } do
+			player:SetAttribute(attribute, false)
+		end
+		setRainbow(player, false)
+		setInvisible(player, false)
+		local humanoid, root = parts(player)
+		if humanoid then
+			humanoid.WalkSpeed = 16
+			humanoid.UseJumpPower = true
+			humanoid.JumpPower = 50
+			humanoid.AutoRotate = true
+		end
+		if root then
+			root.Anchored = false
+			for _, child in root:GetChildren() do
+				if string.sub(child.Name, 1, 5) == "Admin" then
+					child:Destroy() -- trail, fire, spin, sparkles
+				end
+			end
+		end
+		local character = player.Character
+		if character then
+			for _, name in { "AdminGod", "AdminShield" } do
+				local shield = character:FindFirstChild(name)
+				if shield then
+					shield:Destroy()
+				end
+			end
+			if character:GetScale() ~= 1 then
+				character:ScaleTo(1)
+			end
+		end
+	end
+	tell(speaker, `Back to normal: {names(targets)}`)
+end)
+
+-- Anyone who's flying can land themselves (the Land button and the F key)
+landEvent.OnServerEvent:Connect(function(player)
+	player:SetAttribute("AdminFlying", false)
+	player:SetAttribute("AdminNoclip", false)
 end)
 
 -- Hook them up to the chat -------------------------------------------------------------

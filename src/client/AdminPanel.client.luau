@@ -44,7 +44,7 @@ local BOUNCE = TweenInfo.new(0.18, Enum.EasingStyle.Back, Enum.EasingDirection.O
 
 -- The buttons: { label, command, what it needs, red?, item } in sections.
 -- needs: "who" = the picked player(s), "number" = also the number box, "message" = the message
--- box, "item" = a fixed item to give, "nothing" = just the command
+-- box, "item" = a fixed item to give, "fixed" = a set value, "nothing" = just the command
 local SECTIONS = {
 	{
 		name = "Moves",
@@ -52,10 +52,16 @@ local SECTIONS = {
 		buttons = {
 			{ "🕊️ Fly", "fly", "who" },
 			{ "🛬 Land", "unfly", "who" },
+			{ "🧱 Noclip", "noclip", "who" },
+			{ "🚪 Solid", "clip", "who" },
+			{ "♾️ Air jumps", "infjump", "who" },
+			{ "🦶 No air jumps", "uninfjump", "who" },
+			{ "🖱️ Click TP", "clicktp", "who" },
+			{ "🖱️ Click TP off", "unclicktp", "who" },
 			{ "⚡ Speed", "speed", "number" },
 			{ "🦘 Jump", "jump", "number" },
 			{ "🍄 Size", "size", "number" },
-			{ "🙂 Normal", "normal", "who" },
+			{ "🙂 All normal", "normal", "who" },
 		},
 	},
 	{
@@ -90,8 +96,21 @@ local SECTIONS = {
 			{ "👀 Visible", "visible", "who" },
 			{ "✨ Sparkles", "sparkles", "who" },
 			{ "🚫 No sparkles", "unsparkles", "who" },
+			{ "🌈 Rainbow", "rainbow", "who" },
+			{ "🎨 Colours back", "unrainbow", "who" },
+			{ "💫 Trail", "trail", "who" },
+			{ "🚫 No trail", "untrail", "who" },
+			{ "🔥 Pink fire", "fire", "who" },
+			{ "🧯 Fire out", "unfire", "who" },
+			{ "🌀 Spin", "spin", "who" },
+			{ "🛑 Stop spin", "unspin", "who" },
+			{ "🫧 Shield", "shield", "who" },
+			{ "🚫 No shield", "unshield", "who" },
+			{ "🎉 Confetti", "confetti", "nothing" },
+			{ "🌙 Moon gravity", "gravity", "fixed", false, "50" },
+			{ "🌍 Normal gravity", "gravity", "fixed", false, "196.2" },
 			{ "☀️ Day", "day", "nothing" },
-			{ "🌙 Night", "night", "nothing" },
+			{ "🌃 Night", "night", "nothing" },
 		},
 	},
 	{
@@ -500,6 +519,8 @@ local function press(command: string, needs: string, item: string?)
 		words = if number then { picked, tostring(number) } else { picked }
 	elseif needs == "item" then
 		words = { picked, item or "" }
+	elseif needs == "fixed" then
+		words = { item or "" } -- a set value, like moon gravity
 	elseif needs == "message" then
 		local message = messageBox.Text
 		if command == "announce" then
