@@ -86,11 +86,9 @@ end)
 
 -- Flying -------------------------------------------------------------------------------
 
-local controls = nil
-pcall(function()
-	controls = require(player:WaitForChild("PlayerScripts"):WaitForChild("PlayerModule") :: ModuleScript):GetControls()
-end)
-
+-- (Which way you're steering comes from your character's MoveDirection, which works with a
+-- keyboard, a phone's joystick and a controller. It used to come from Roblox's PlayerModule,
+-- but this game doesn't have one there, so the script waited forever and flying never started.)
 local stopFlying: (() -> ())? = nil
 
 local function startFlying()
@@ -123,8 +121,13 @@ local function startFlying()
 
 	local connection = RunService.RenderStepped:Connect(function()
 		local camera = workspace.CurrentCamera
-		local move = if controls then controls:GetMoveVector() else Vector3.zero
-		local direction = camera.CFrame:VectorToWorldSpace(move) -- forward goes where the camera looks
+		local look = camera.CFrame.LookVector
+		local flatLook = Vector3.new(look.X, 0, look.Z)
+		-- the way you're steering (flat, already turned to match the camera)
+		local move = humanoid.MoveDirection
+		-- going forwards also goes up or down with the camera, so you fly where you look
+		local forwards = if flatLook.Magnitude > 0.01 then math.max(move:Dot(flatLook.Unit), 0) else 0
+		local direction = move + Vector3.new(0, look.Y * forwards * 1.5, 0)
 		local up = (if UserInputService:IsKeyDown(Enum.KeyCode.Space) then 1 else 0)
 			- (
 				if UserInputService:IsKeyDown(Enum.KeyCode.LeftControl) or UserInputService:IsKeyDown(Enum.KeyCode.Q)
@@ -133,10 +136,8 @@ local function startFlying()
 			)
 		direction += Vector3.new(0, up, 0)
 		velocity.VectorVelocity = if direction.Magnitude > 0.01 then direction.Unit * FLY_SPEED else Vector3.zero
-		local look = camera.CFrame.LookVector
-		local flat = Vector3.new(look.X, 0, look.Z)
-		if flat.Magnitude > 0.01 then
-			turn.CFrame = CFrame.lookAt(Vector3.zero, flat) -- stay upright, facing where the camera faces
+		if flatLook.Magnitude > 0.01 then
+			turn.CFrame = CFrame.lookAt(Vector3.zero, flatLook) -- stay upright, facing where the camera faces
 		end
 	end)
 
