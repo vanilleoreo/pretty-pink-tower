@@ -4,11 +4,16 @@
     {
       "label": "Rojo: serve (live sync to Roblox Studio)",
       "type": "shell",
-      "command": "if curl -s --max-time 2 http://localhost:34872/api/rojo > /dev/null; then echo 'Rojo is already running on port 34872 - live sync is active.'; else rojo serve; fi",
+      "command": "if curl -s --max-time 2 http://localhost:34872/api/rojo | grep -aq 'pretty-pink-tower'; then echo 'Rojo for pretty-pink-tower is already running - live sync is active.'; else pid=$(lsof -ti tcp:34872); if [ -n \"$pid\" ]; then echo 'Switching Rojo over from the other game...'; kill $pid; sleep 1; fi; rojo serve; fi",
       "isBackground": true,
       "problemMatcher": [],
-      "runOptions": { "runOn": "folderOpen" },
-      "presentation": { "reveal": "silent", "panel": "dedicated" }
+      "runOptions": {
+        "runOn": "folderOpen"
+      },
+      "presentation": {
+        "reveal": "silent",
+        "panel": "dedicated"
+      }
     }
   ]
 }
