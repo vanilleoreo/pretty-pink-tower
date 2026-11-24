@@ -31,3 +31,6 @@ Everything else (Workspace models, tools, givers) is still edited in Studio.
 5. Commit and push in VS Code to back it up on GitHub.
 
 If sync is not running: in VS Code run **Terminal → Run Task… → Rojo: serve**.
+
+Rojo only syncs into this game's place (`servePlaceIds` in `default.project.json`), so opening
+a different game in Studio while this project is serving can't overwrite that game's scripts.
